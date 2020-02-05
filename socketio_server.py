@@ -1,7 +1,7 @@
 from flask import Flask, request, jsonify, render_template
 from flask_socketio import SocketIO, emit,send, join_room
 from flask_cors import CORS
-from db import database
+from db import database, add_room, add_room_members
 from bson.objectid import ObjectId
 
 
@@ -41,13 +41,17 @@ def send_message(payload):
     emit('new_message', message, room=recipient_sid)
 
 
-@app.route('/create_room')
+@app.route('/create_room',  methods = ['GET', 'POST'])
 def create_room():
     try:
         req_data = request.get_json()
 
         req_data['_id'] = str(ObjectId())
+        usernames = ['flavoursoft@yahoo.com', 'info@flavoursoft.com', 'carlnjoku@yahoo.com']
         x = database["rooms"].insert_one(req_data)
+        if len(usernames):
+            for username in usernames: 
+                add_room_members(username) 
         return jsonify({"result": "room successfully created"})
 
     except Exception as e:
