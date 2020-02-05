@@ -11,18 +11,18 @@ client = MongoClient(mongo_uri)
 database = client[db_name]
 
 rooms_collection = database['rooms']
-room_member_collection = database['room_members']
-message_collection = database['messages']
+room_members_collection = database['room_members']
+messages_collection = database['messages']
 
 def add_room(username, email):
     rooms_collection.inset_one({})
 
 
 def add_room_members(username, email):
-    room_member_collection.inset_one({})
+    room_members_collection.inset_one({})
 
 def save_message(room_id, text, sender):
-    message_collection.inset_one({'room_id':room_id, 'text':text, 'sender':sender})
+    messages_collection.inset_one({'room_id':room_id, 'text':text, 'sender':sender})
 
 
 
