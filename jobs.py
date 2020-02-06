@@ -1,7 +1,7 @@
 from flask import Flask, request, jsonify
 import shutil
 import os
-from db import database
+from db import database, add_room
 import datetime
 import base64
 from flask_cors import CORS
@@ -197,11 +197,14 @@ def new_proposal():
         else:
             req_data['_id'] = str(ObjectId())
 
-            x = database["proposal"].insert_one(req_data)
-            return jsonify({"msg": developerId})
+            proposal = database["proposal"].insert_one(req_data)
+            
+            # Create a chat room using the proposalId
+            add_room(proposal['proposalId'], developerId, req_data['avatar'],  req_data['firstname'], req_data['lastname'], req_data['email'], req_data['created_on'])
+            return jsonify({"result": 'proposal successfully sent'})
 
     except Exception as e:
-        return jsonify({"data": {"error_msg": str(e)}})
+        return jsonify({"result": {"error_msg": str(e)}})
 
 
 @app.route('/get_proposal_projectId_0', methods=['GET'])

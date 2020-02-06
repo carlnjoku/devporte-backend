@@ -14,16 +14,18 @@ rooms_collection = database['rooms']
 room_members_collection = database['room_members']
 messages_collection = database['messages']
 
-def add_room(username, email):
-    rooms_collection.inset_one({})
+def add_room(room, userId, avatar, firstname, lastname, email, created_on):
+    rooms_collection.inset_one({'room':room, 'userId':userId, 'avatar': avatar,  'firstname': firstname, 'lastname': lastname, 'email':email, 'created_on': created_on })
 
 
 def add_room_members(username, email):
     room_members_collection.inset_one({})
 
-def save_message(room_id, text, sender):
-    messages_collection.inset_one({'room_id':room_id, 'text':text, 'sender':sender})
+def save_message(room_id, text, sender, created_on):
+    messages_collection.inset_one({'room_id':room_id, 'text':text, 'sender':sender, 'created_on':created_on})
 
+def get_messages(room_id):
+    return list(messages_collection.find({'room_id':room_id}))
 
 
 
