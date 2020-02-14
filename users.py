@@ -10,16 +10,46 @@ import hashlib
 import json
 from PIL import Image
 from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.utils import secure_filename
 from functools import wraps
 import jwt
 
+from firbase_storage import firebase
+import pyrebase
 
+
+config = {
+    
+    "apiKey": "AIzaSyAIQcCsIQk3i-uIFnPnINhs6F3PJa3H418",
+    "authDomain": "devporte-64919.firebaseapp.com",
+    "databaseURL": "https://devporte-64919.firebaseio.com",
+    "projectId": "devporte-64919",
+    "storageBucket": "devporte-64919.appspot.com",
+    "messagingSenderId": "943749828225",
+    "appId": "1:943749828225:web:3f65bee5527a2d27098780",
+    "measurementId": "G-5HH7B19XJJ"
+  
+}
+
+firebase = pyrebase.initialize_app(config)
+
+storage = firebase.storage()
 
 
 app = Flask(__name__)
 cors = CORS(app, resources={r"/*": {"origins": "*"}})
 
 app.config['SECRET_KEY'] = 'thisismysecretkey'
+
+
+ALLOWED_EXTENSIONS_ALL_PROFILE = set(['png', 'jpg', 'jpeg', 'gif'])
+
+UPLOAD_FOLDER = 'media'
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+
+def allowed_file_profile(filename):
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS_ALL_PROFILE
 
 def token_required(f):
     @wraps(f)
@@ -103,6 +133,128 @@ def login():
     
     #return jsonify({'message':'Could not verify account'})
     return make_response('Could not verify', 401, {'WWW-Authenticate' : 'Basic realm = "Login required"'})
+
+@app.route('/update_profile', methods=['PUT'])
+def update_profile():
+    
+    res={}
+    
+    file = request.files['avatarBlob']
+    if 'avatarBlob' in request.files and allowed_file_profile(file.filename) and 'firstname' in request.form and 'uid' in request.form :
+
+        
+        skills = request.form['expertise']
+        uid = request.form['uid']
+        professional_title = request.form['professional_title']
+        firstname = request.form['firstname']
+        timezone = request.form['tzone']
+        linkedin = request.form['linkedin']
+        github = request.form['github']
+        website = request.form['website']
+        pastprojects = request.form['pastprojects']
+        about = request.form['about']
+        updated_on = request.form['updated_on']
+        calling_code = request.form['calling_code']
+        phone = request.form['phone']
+        updated_on = request.form['updated_on']
+        geoLoc = request.form['geoLoc']
+        experience_Level = request.form['experience_Level']
+        availability = request.form['availability']
+        project_type = request.form['project_type']
+        primary_skills = request.form['primary_skills']
+        secondary_skills = request.form['secondary_skills']
+        
+
+        get_filename = secure_filename(file.filename)
+        filename, file_extension = os.path.splitext(get_filename)
+
+        # Generate new file name
+        filename = uid+'-'+firstname+file_extension
+
+        filename = filename.replace(' ', '-').lower()
+
+        
+    else:
+        if not 'avatarBlob' in request.files :res["error"] = "No Image"
+        
+        if not allowed_file_profile(file.filename):res["error"] = "File type not supported"
+        
+        
+        return jsonify({"result": res})
+
+    filename = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+
+    
+    
+    print(filename)
+
+    if not os.path.exists(UPLOAD_FOLDER):
+        os.makedirs(UPLOAD_FOLDER)
+
+    
+
+    temp_file = os.path.join(app.config['UPLOAD_FOLDER'], "temp.jpg")
+    
+    file.save(temp_file)
+    
+    storage.child(filename).put(temp_file)
+    
+    # Get image url from firebase
+    img_url = storage.child(filename).get_url(None)
+   
+    #res["msg"] = "Valid_Image"
+    shutil.copy(temp_file,filename)
+    file = request.files['avatarBlob']
+
+    
+    res["media"] = filename
+
+    print(request.files)
+
+    
+   
+    data = {
+            "expertise":skills,
+            "professional_title":professional_title,
+            "timezone": timezone,
+            "linkedin" : linkedin,
+            "github" : github,
+            "website" : website,
+            "pastprojects" : pastprojects,
+            "about" : about,
+            "avatar":img_url,
+            "experience":[],
+            "education":[],
+            "other_skills":[],
+            "portfolio":[],
+            "status" : "new",
+            "vetted":False,
+            "updated_on": updated_on,
+            "calling_code": calling_code,
+            "geoLoc": geoLoc,
+            "phone": phone,
+            "experience_Level":experience_Level,
+            "availability": availability,
+            "project_type":project_type,
+            "primary_skills":primary_skills,
+            "secondary_skills":secondary_skills
+        }
+
+       
+
+    dev = database['users'].find_one({"_id": uid})
+    if dev is not None:
+        database['users'].update_one({"_id": uid}, {"$set": data},
+                                                    upsert=True)
+        return jsonify({"data": {"msg": "Developer profile successfully updated"}})
+    else:
+        return jsonify({"msg": "Admin does not exist"})
+
+
+    os.remove(temp_file)
+
+    return jsonify({"result": 'proposal successfully sent'})
+
 
 
 if __name__ == '__main__':

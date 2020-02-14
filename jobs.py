@@ -45,6 +45,7 @@ cors = CORS(app, resources={r"/*": {"origins": "*"}})
 
 
 ALLOWED_EXTENSIONS_ALL = set(['png', 'jpg', 'jpeg', 'gif', 'mp4', 'mp3', 'docx', 'doc'])
+ALLOWED_EXTENSIONS_ALL_PROFILE = set(['png', 'jpg', 'jpeg', 'gif'])
 
 UPLOAD_FOLDER = 'media'
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
@@ -52,6 +53,10 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS_ALL
+
+def allowed_file_profile(filename):
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS_ALL_PROFILE
 
 @app.route('/new_project_post', methods=['POST'])
 def new_job_post():
@@ -182,8 +187,8 @@ def delete_applicant():
         return jsonify({"data": {"error_msg": str(e)}})
 
 
-@app.route('/new_proposal', methods=['POST'])
-def new_proposal():
+@app.route('/new_proposal_old', methods=['POST'])
+def new_proposal_old():
     
     try:
         
@@ -197,32 +202,118 @@ def new_proposal():
         else:
             req_data['_id'] = str(ObjectId())
 
-            proposal = database["proposal"].insert_one(req_data)
+            proposal_id = database["proposal"].insert_one(req_data).inserted_id
             
+            #print(list(proposal))
             # Create a chat room using the proposalId
-            add_room(proposal['proposalId'], developerId, req_data['avatar'],  req_data['firstname'], req_data['lastname'], req_data['email'], req_data['created_on'])
+            #database['room'].insert_one({'room':proposal_id, 'project_title':req_data['project_title'], 'userId':developerId, 'avatar': req_data['avatar'],  'firstname': req_data['firstname'], 'lastname': req_data['lastname'], 'email':req_data['email'], 'created_on': req_data['created_on'] })
+            add_room(proposal_id, req_data['project_title'], developerId, req_data['avatar'],  req_data['firstname'], req_data['lastname'], req_data['email'], req_data['created_on'])
             return jsonify({"result": 'proposal successfully sent'})
 
     except Exception as e:
         return jsonify({"result": {"error_msg": str(e)}})
 
 
-@app.route('/get_proposal_projectId_0', methods=['GET'])
-def get_proposal_projectId_0():
-    try:
-        res = []
-        projectId = request.args.get('_id')
-        #projectId = '5e123102abe2c53ede1acbb4'
-        #print(projectId)
-        proposals = list(database['proposal'].find({"projectId": projectId}))
-        #print(proposals)
-        for proposal in proposals:
-            prop = database['users'].find_one({"_id": proposal['developerId']})
-            res.append(prop)
 
-        return jsonify({"data": res})         
-    except Exception as e:
-        return jsonify({"data": {"error_msg": str(e)}})
+@app.route('/new_proposal', methods=['POST'])
+def new_proposal():
+    res={}
+    file = request.files['image']
+    if 'image' in request.files and allowed_file_profile(file.filename) and 'firstname' in request.form and 'lastname' in request.form and 'email' in request.form and 'developerId' in request.form :
+    
+        developerId = request.form['developerId']
+        projectId= request.form['projectId']
+        project_title  = request.form['project_title']
+        firstname  = request.form['firstname']
+        lastname  = request.form['lastname']
+        email = request.form['email']
+        bid  = request.form['bid']
+        hourly_rate  = request.form['hourly_rate']
+        cover_letter  = request.form['cover_letter']
+        created_on  = request.form['created_on']
+      
+        get_filename = secure_filename(file.filename)
+        filename, file_extension = os.path.splitext(get_filename)
+
+        # Generate new file name
+        filename = developerId+'-'+firstname+file_extension
+
+        filename = filename.replace(' ', '-').lower()
+
+        
+    else:
+        if not 'image' in request.files :res["error"] = "No Image"
+        
+        if not allowed_file_profile(file.filename):res["error"] = "File type not supported"
+        
+        
+        return jsonify({"result": 'what'})
+
+    filename = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+
+    
+    
+    print(filename)
+
+    if not os.path.exists(UPLOAD_FOLDER):
+        os.makedirs(UPLOAD_FOLDER)
+
+    
+
+    temp_file = os.path.join(app.config['UPLOAD_FOLDER'], "temp.jpg")
+    
+    file.save(temp_file)
+    
+    storage.child(filename).put(temp_file)
+    
+    # Get image url from firebase
+    img_url = storage.child(filename).get_url(None)
+   
+    #res["msg"] = "Valid_Image"
+    shutil.copy(temp_file,filename)
+    file = request.files['image']
+
+    
+    res["media"] = filename
+
+    print(request.files)
+
+    
+   
+    data = {
+        'developerId': developerId,
+        'projectId' : projectId,
+        'project_title'  : project_title,
+        'firstname'  : firstname,
+        'lastname'  : lastname,
+        'avatar' : img_url,
+        'email' : email,
+        'bid'  : bid,
+        'hourly_rate' : hourly_rate,
+        'cover_letter'  : cover_letter,
+        'created_on'  : created_on,
+    }
+
+    member = database['proposal'].find_one({"developerId": developerId, "projectId":projectId }, {"_id": 0})
+    if member is not None:
+        return jsonify({"data": {"message": "Already sent a proposal for this project"}})
+    else:
+        data['_id'] = str(ObjectId())
+
+        proposal_id = database["proposal"].insert_one(data).inserted_id
+        
+        #print(list(proposal))
+        # Create a chat room using the proposalId
+        #database['room'].insert_one({'room':proposal_id, 'project_title':req_data['project_title'], 'userId':developerId, 'avatar': req_data['avatar'],  'firstname': req_data['firstname'], 'lastname': req_data['lastname'], 'email':req_data['email'], 'created_on': req_data['created_on'] })
+        add_room(proposal_id, data['project_title'], developerId, data['avatar'],  data['firstname'], data['lastname'], data['email'], data['created_on'])
+    
+    
+    
+
+
+    os.remove(temp_file)
+
+    return jsonify({"result": 'proposal successfully sent'})
 
 
 @app.route('/get_proposal_projectId', methods=['GET'])

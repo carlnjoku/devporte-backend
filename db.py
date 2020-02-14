@@ -1,4 +1,5 @@
 from pymongo import MongoClient
+from bson.objectid import ObjectId
 
 db_name = 'devporte'
 db_host_mongo = '0.0.0.0'
@@ -14,15 +15,19 @@ rooms_collection = database['rooms']
 room_members_collection = database['room_members']
 messages_collection = database['messages']
 
-def add_room(room, userId, avatar, firstname, lastname, email, created_on):
-    rooms_collection.inset_one({'room':room, 'userId':userId, 'avatar': avatar,  'firstname': firstname, 'lastname': lastname, 'email':email, 'created_on': created_on })
+def add_room(room, created_on, project_title, userId, avatar, firstname, lastname, email):
+    room_id = rooms_collection.insert_one({'room':room, 'created_on': created_on }).inserted_id
+    add_room_member(room_id, room, project_title, userId, avatar, firstname, lastname, email,  created_on, isRoomAdmin=True)
+    return room_id
+def add_room_member(room_id, room, project_title, userId, avatar, firstname, lastname, email, created_on, isRoomAdmin=False):
+    room_members_collection.insert_one({'room_id':room_id, 'room':room, 'project_title':project_title, 'userId':userId, 'avatar': avatar,  'firstname': firstname, 'lastname': lastname, 'email':email, 'created_on': created_on, 'isRoomAdmin':isRoomAdmin, })
 
-
-def add_room_members(username, email):
-    room_members_collection.inset_one({})
+def add_room_members(room_id,room, project_title, userIds, avatar, firstname, lastname, email, created_on, isRoomAdmin=False,):
+    room_members_collection.insert_many([{'room_id':room_id, 'room':room, 'project_title':project_title, 'userId':userId, 'avatar': avatar,  'firstname': firstname, 'lastname': lastname, 'email':email, 'created_on': created_on, 'isRoomAdmin':isRoomAdmin}
+                    for userId in userIds])
 
 def save_message(room_id, text, sender, created_on):
-    messages_collection.inset_one({'room_id':room_id, 'text':text, 'sender':sender, 'created_on':created_on})
+    messages_collection.insert_one({'room_id':room_id, 'text':text, 'sender':sender, 'created_on':created_on})
 
 def get_messages(room_id):
     return list(messages_collection.find({'room_id':room_id}))
