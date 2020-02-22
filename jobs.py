@@ -213,8 +213,56 @@ def new_proposal_old():
     except Exception as e:
         return jsonify({"result": {"error_msg": str(e)}})
 
+@app.route('/new_proposal', methods=['POST'])
+def new_proposal():
+    res={}
+  
+    developerId = request.form['developerId']
+    projectId= request.form['projectId']
+    project_title  = request.form['project_title']
+    firstname  = request.form['firstname']
+    lastname  = request.form['lastname']
+    email = request.form['email']
+    bid  = request.form['bid']
+    hourly_rate  = request.form['hourly_rate']
+    cover_letter  = request.form['cover_letter']
+    created_on  = request.form['created_on']
+    avatar = request.form['avatar']
+      
+   
+    data = {
+        'developerId': developerId,
+        'projectId' : projectId,
+        'project_title'  : project_title,
+        'firstname'  : firstname,
+        'lastname'  : lastname,
+        'email' : email,
+        'bid'  : bid,
+        'hourly_rate' : hourly_rate,
+        'cover_letter'  : cover_letter,
+        'created_on'  : created_on,
+        'avatar':avatar
+    }
+
+    member = database['proposal'].find_one({"developerId": developerId, "projectId":projectId }, {"_id": 0})
+    if member is not None:
+        return jsonify({"data": {"message": "Already sent a proposal for this project"}})
+    else:
+        data['_id'] = str(ObjectId())
+
+        proposal_id = database["proposal"].insert_one(data).inserted_id
+        
+        #print(list(proposal))
+        # Create a chat room using the proposalId
+        #database['room'].insert_one({'room':proposal_id, 'project_title':req_data['project_title'], 'userId':developerId, 'avatar': req_data['avatar'],  'firstname': req_data['firstname'], 'lastname': req_data['lastname'], 'email':req_data['email'], 'created_on': req_data['created_on'] })
+        add_room(proposal_id, data['project_title'], developerId, data['avatar'],  data['firstname'], data['lastname'], data['email'], data['created_on'])
+    
+    
+
+    return jsonify({"result": 'proposal successfully sent'})
 
 
+"""
 @app.route('/new_proposal', methods=['POST'])
 def new_proposal():
     res={}
@@ -315,7 +363,7 @@ def new_proposal():
 
     return jsonify({"result": 'proposal successfully sent'})
 
-
+"""
 @app.route('/get_proposal_projectId', methods=['GET'])
 def get_proposal_projectId():
     try:
