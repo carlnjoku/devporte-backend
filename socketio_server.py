@@ -11,6 +11,16 @@ socketio = SocketIO(app)
 socketio.init_app(app, cors_allowed_origins="*")
 
 users = []
+
+
+@socketio.on('message', namespace='/')
+def message(data):
+    x = database["users"].update({'_id':data}, {'$set':{'online':True}})
+    response = 'true'
+    emit('user_connected_annoucement', response)
+    print(data)
+
+
 @app.route('/')
 def index():
     return 'Hello world !'

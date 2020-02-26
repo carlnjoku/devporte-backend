@@ -59,7 +59,7 @@ def token_required(f):
             token = request.headers['x-access-token']
           
         if not token:
-            return jsonify({'message':'Token missing!'})
+            return jsonify({'message':'Token missing!'}), 403
         try:
             data = jwt.decode(token, app.config['SECRET_KEY'])
             current_user = database['users'].find_one({"_id": data['userId']})
@@ -71,6 +71,17 @@ def token_required(f):
             
         return f(current_user, *args, **kwargs)
     return decorated
+
+@app.route('/check_status', methods=['GET'])
+#@token_required
+def user_type():
+    user_type = request.args.get('user_type')
+    #user_type = 'developer'
+    print(user_type)
+    #if not current_user.user_type == user_type:
+    #if not  user_type:
+    return jsonify({'message':'You are not authorize to access this page'})
+    #return jsonify({'message': 'welcome back'}), 200
 
 @app.route('/get_user', methods=['GET'])
 def get_employer():
@@ -129,7 +140,7 @@ def login():
         
         #generate token 
         token = jwt.encode({'userId':user['_id'], 'email':user['email'], 'exp':datetime.datetime.utcnow() + datetime.timedelta(minutes=30)}, app.config['SECRET_KEY'])
-        return jsonify({'token': token.decode('UTF-8'), 'user_type' : user['user_type'], 'userId':user['_id']})
+        return jsonify({'token': token.decode('UTF-8'), 'user_type' : user['user_type'], 'userId':user['_id'], 'loggedIn': True})
     
     #return jsonify({'message':'Could not verify account'})
     return make_response('Could not verify', 401, {'WWW-Authenticate' : 'Basic realm = "Login required"'})
@@ -210,6 +221,7 @@ def update_profile():
     res["media"] = filename
 
     print(request.files)
+    print(json.loads(secondary_skills))
 
     
    
@@ -231,13 +243,13 @@ def update_profile():
             "vetted":False,
             "updated_on": updated_on,
             "calling_code": calling_code,
-            "geoLoc": geoLoc,
+            "geoLoc": json.loads(geoLoc),
             "phone": phone,
             "experience_Level":experience_Level,
             "availability": availability,
             "project_type":project_type,
-            "primary_skills":primary_skills,
-            "secondary_skills":secondary_skills
+            "primary_skills":json.loads(primary_skills),
+            "secondary_skills":json.loads(secondary_skills)
         }
 
     dev = database['users'].find_one({"_id": uid})
@@ -248,7 +260,7 @@ def update_profile():
     else:
         return jsonify({"msg": "Admin does not exist"})
 
-
+    
     os.remove(temp_file)
 
     return jsonify({"result": 'proposal successfully sent'})
@@ -280,7 +292,7 @@ def list_developers_experiences():
         exp = database['experience'].find({'userId':userId}).sort([("timestamp", -1)])
         print(exp.count())
         #return jsonify({"data": candidates.count()})
-        print(exp)
+        
         return jsonify({"data": list(exp)})
     except Exception as e:
         return jsonify({"data": {"error_msg": str(e)}})
@@ -345,98 +357,118 @@ def list_developers_experiences():
 
 """
 
-@app.route('/add_portfolio', methods=['PUT'])
+@app.route('/add_portfolio', methods=['POST'])
 def add_portfolio():
     
-    res={}
-    
-    file = request.files['image']
-    if 'image' in request.files and allowed_file_profile(file.filename) and 'userId' in request.form :
-
-        userId = request.form['userId']
-        skills = request.form['skills']
-        description = request.form['description']
-        project_title = request.form['project_title']
+    try:
+        res={}
         
+        file = request.files['image']
+        if 'image' in request.files and allowed_file_profile(file.filename) and 'userId' in request.form :
 
-        get_filename = secure_filename(file.filename)
-        filename, file_extension = os.path.splitext(get_filename)
-
-        # Generate new file name
-        filename = userId+'-'+project_title+file_extension
-
-        filename = filename.replace(' ', '-').lower()
-
-        
-    else:
-        if not 'image' in request.files :res["error"] = "No Image"
-        
-        if not allowed_file_profile(file.filename):res["error"] = "File type not supported"
-        
-        
-        return jsonify({"result": res})
-
-    filename = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-
-    
-    
-    print(filename)
-
-    if not os.path.exists(UPLOAD_FOLDER):
-        os.makedirs(UPLOAD_FOLDER)
-
-    
-
-    temp_file = os.path.join(app.config['UPLOAD_FOLDER'], "temp.jpg")
-    
-    file.save(temp_file)
-    
-    storage.child(filename).put(temp_file)
-    
-    # Get image url from firebase
-    img_url = storage.child(filename).get_url(None)
-   
-    #res["msg"] = "Valid_Image"
-    shutil.copy(temp_file,filename)
-    file = request.files['image']
-
-    
-    res["media"] = filename
-
-    print(request.files)
-
-    
-   
-    data = {
-            "skills":skills,
-            "project_title":project_title,
-            "description": description,
-            "thumbnail_url" : img_url,
-            "userId":userId
-        }
-
-    dev = database['users'].find_one({"_id": userId})
-    if dev is not None:
-        #print(data)
-        database['users'].update_one({"_id": userId}, {"$push": {'portfolio' :data}},
-                                                        upsert=True)
-        return jsonify({"data": {"msg": "Developer profile successfully updated"}})
-    else:
-        return jsonify({"msg": "user does not exist"})
+            userId = request.form['userId']
+            skills = request.form['skills']
+            description = request.form['description']
+            project_title = request.form['project_title']
             
-        #except Exception as e:
-        #return jsonify({"data": {"error_msg": str(e)}})
 
+            get_filename = secure_filename(file.filename)
+            filename, file_extension = os.path.splitext(get_filename)
+
+            # Generate new file name
+            filename = userId+'-'+project_title+file_extension
+
+            filename = filename.replace(' ', '-').lower()
+
+            
+        else:
+            if not 'image' in request.files :res["error"] = "No Image"
+            
+            if not allowed_file_profile(file.filename):res["error"] = "File type not supported"
+            
+            
+            return jsonify({"result": res})
+
+        filename = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+
+        
+        
+        print(filename)
+
+        if not os.path.exists(UPLOAD_FOLDER):
+            os.makedirs(UPLOAD_FOLDER)
+
+        
+
+        temp_file = os.path.join(app.config['UPLOAD_FOLDER'], "temp.jpg")
+        
+        file.save(temp_file)
+        
+        storage.child(filename).put(temp_file)
+        
+        # Get image url from firebase
+        img_url = storage.child(filename).get_url(None)
+    
+        #res["msg"] = "Valid_Image"
+        shutil.copy(temp_file,filename)
+        file = request.files['image']
+
+        
+        res["media"] = filename
+
+        print(request.files)
+
+        
+    
+        data = {
+                "skills":json.loads(skills),
+                "project_title":project_title,
+                "description": description,
+                "thumbnail_url" : img_url,
+                "userId":userId
+            }
+
+        
+        #dev = database['users'].find_one({"_id": userId})
+        """
+        if dev is not None:
+            #print(data)
+            database['users'].update_one({"_id": userId}, {"$push": {'portfolio' :data}},
+                                                            upsert=True)
+            return jsonify({"data": {"msg": "Developer profile successfully updated"}})
+        else:
+            return jsonify({"msg": "user does not exist"})
+                
+            #except Exception as e:
+            #return jsonify({"data": {"error_msg": str(e)}})
+        """
+        data['_id'] = str(ObjectId())
+        x = database["portfolio"].insert_one(data)
+        return jsonify({"msg": "Portfolio successfully created"})
+
+    except Exception as e:
+        return jsonify({"data": {"error_msg": str(e)}})
 
 @app.route('/list_developer_portfolio', methods=['GET'])
 def list_developer_portfolio():
     try:
         userId = request.args.get('_id')
-        pfo = database['users'].find({'_id':userId}, {'portfolio': 1, '_id':0})
+        pfo = database['portfolio'].find({'userId':userId})
         print(pfo.count())
         #return jsonify({"data": candidates.count()})
         print(pfo)
         return jsonify({"data": list(pfo)})
+    except Exception as e:
+        return jsonify({"data": {"error_msg": str(e)}})
+
+
+@app.route('/get_one_portfolio', methods=['GET'])
+def get_one_portfolio():
+    try:
+        pfId = request.args.get('_id')
+        portf = database['portfolio'].find_one({'_id':pfId})
+        
+        return jsonify({"data": portf})
     except Exception as e:
         return jsonify({"data": {"error_msg": str(e)}})
 
@@ -445,6 +477,18 @@ def list_developer_primary_skills():
     try:
         userId = request.args.get('_id')
         pfo = database['users'].find({'_id':userId}, {'primary_skills': 1, '_id':0})
+        print(pfo.count())
+        #return jsonify({"data": candidates.count()})
+        print(pfo)
+        return jsonify({"data": list(pfo)})
+    except Exception as e:
+        return jsonify({"data": {"error_msg": str(e)}})
+
+@app.route('/list_developer_secondary_skills', methods=['GET'])
+def list_developer_secondary_skills():
+    try:
+        userId = request.args.get('_id')
+        pfo = database['users'].find({'_id':userId}, {'secondary_skills': 1, '_id':0})
         print(pfo.count())
         #return jsonify({"data": candidates.count()})
         print(pfo)

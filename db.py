@@ -19,9 +19,12 @@ def add_room(room, created_on, project_title, userId, avatar, firstname, lastnam
     room_id = rooms_collection.insert_one({'room':room, 'created_on': created_on }).inserted_id
     add_room_member(room_id, room, project_title, userId, avatar, firstname, lastname, email,  created_on, isRoomAdmin=True)
     return room_id
+
+# Add single room member
 def add_room_member(room_id, room, project_title, userId, avatar, firstname, lastname, email, created_on, isRoomAdmin=False):
     room_members_collection.insert_one({'room_id':room_id, 'room':room, 'project_title':project_title, 'userId':userId, 'avatar': avatar,  'firstname': firstname, 'lastname': lastname, 'email':email, 'created_on': created_on, 'isRoomAdmin':isRoomAdmin, })
 
+# Add multiple room members
 def add_room_members(room_id,room, project_title, userIds, avatar, firstname, lastname, email, created_on, isRoomAdmin=False,):
     room_members_collection.insert_many([{'room_id':room_id, 'room':room, 'project_title':project_title, 'userId':userId, 'avatar': avatar,  'firstname': firstname, 'lastname': lastname, 'email':email, 'created_on': created_on, 'isRoomAdmin':isRoomAdmin}
                     for userId in userIds])
