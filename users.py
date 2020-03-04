@@ -57,9 +57,9 @@ def token_required(f):
         token = None
         if 'x-access-token' in request.headers:
             token = request.headers['x-access-token']
-          
         if not token:
             return jsonify({'message':'Token missing!'}), 403
+            print(token)
         try:
             data = jwt.decode(token, app.config['SECRET_KEY'])
             current_user = database['users'].find_one({"_id": data['userId']})
@@ -73,15 +73,13 @@ def token_required(f):
     return decorated
 
 @app.route('/check_status', methods=['GET'])
-#@token_required
-def user_type():
+@token_required
+def user_type(current_user):
     user_type = request.args.get('user_type')
-    #user_type = 'developer'
-    print(user_type)
-    #if not current_user.user_type == user_type:
-    #if not  user_type:
-    return jsonify({'message':'You are not authorize to access this page'})
-    #return jsonify({'message': 'welcome back'}), 200
+    #user_type = 'employer'
+    if current_user['user_type'] != user_type:
+        return jsonify({'message':'Unauthorized'})
+    return jsonify({'message': 'welcome back'}), 200
 
 @app.route('/get_user', methods=['GET'])
 def get_employer():
@@ -292,7 +290,7 @@ def list_developers_experiences():
         exp = database['experience'].find({'userId':userId}).sort([("timestamp", -1)])
         print(exp.count())
         #return jsonify({"data": candidates.count()})
-        
+        print(exp)
         return jsonify({"data": list(exp)})
     except Exception as e:
         return jsonify({"data": {"error_msg": str(e)}})

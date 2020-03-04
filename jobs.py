@@ -13,6 +13,7 @@ from werkzeug.utils import secure_filename
 import jwt
 import pandas as pd
 import numpy as np
+from bson import json_util
 
 
 
@@ -68,6 +69,9 @@ def new_job_post():
         data = {
             'employerId': req_data['employerId'],
             'employer_name': req_data['employer_name'],
+            'firstname': req_data['firstname'],
+            'lastname': req_data['lastname'],
+            'email': req_data['email'],
             'title': req_data['title'],
             'job_description': req_data['job_description'],
             'project_type': req_data['project_type'],
@@ -75,7 +79,11 @@ def new_job_post():
             'team_number': req_data['team_number'],
             'experience_level': req_data['experience_level'],
             'payment_type': req_data['payment_type'],
-            'project_time': req_data['project_time']
+            'project_time': req_data['project_time'],
+            'created_on': req_data['created_on']
+
+
+            
         }
 
         
@@ -135,7 +143,7 @@ def edit_job():
 @app.route('/list_jobs', methods=['GET'])
 def list_jobs():
     try:
-        job = database['jobs'].find({})
+        job = database['jobs'].find({}).sort('created_on', -1)
         print(job.count())
         #return jsonify({"data": candidates.count()})
         return jsonify({"data": list(job), "job_count":job.count()})
@@ -224,13 +232,15 @@ def new_proposal():
     lastname  = request.form['lastname']
     email = request.form['email']
     bid  = request.form['bid']
-    hourly_rate  = request.form['hourly_rate']
+    estimated_finish_time  = request.form['estimated_finish_time']
     cover_letter  = request.form['cover_letter']
     created_on  = request.form['created_on']
     avatar = request.form['avatar']
+    room_members = json.loads(request.form['room_members'])
+    
       
    
-    data = {
+    data =  {
         'developerId': developerId,
         'projectId' : projectId,
         'project_title'  : project_title,
@@ -238,12 +248,41 @@ def new_proposal():
         'lastname'  : lastname,
         'email' : email,
         'bid'  : bid,
-        'hourly_rate' : hourly_rate,
+        'estimated_finish_time' : estimated_finish_time,
         'cover_letter'  : cover_letter,
         'created_on'  : created_on,
         'avatar':avatar
     }
 
+    
+    """
+    member_data = []
+
+    member_data.append({
+        'developerId': developerId,
+        'projectId' : projectId,
+        'project_title'  : project_title,
+        'firstname'  : firstname,
+        'lastname'  : lastname,
+        'email' : email,
+        'created_on'  : created_on,
+        'avatar':avatar,
+        'isRoomAdmin': True
+    })
+
+    member_data.append({
+        'developerId': developerId,
+        'projectId' : projectId,
+        'project_title'  : project_title,
+        'firstname'  : firstname,
+        'lastname'  : lastname,
+        'email' : email,
+        'created_on'  : created_on,
+        'avatar':avatar,
+        'isRoomAdmin': True
+    })
+    
+"""
     member = database['proposal'].find_one({"developerId": developerId, "projectId":projectId }, {"_id": 0})
     if member is not None:
         return jsonify({"data": {"message": "Already sent a proposal for this project"}})
@@ -252,12 +291,8 @@ def new_proposal():
 
         proposal_id = database["proposal"].insert_one(data).inserted_id
         
-        #print(list(proposal))
-        # Create a chat room using the proposalId
-        #database['room'].insert_one({'room':proposal_id, 'project_title':req_data['project_title'], 'userId':developerId, 'avatar': req_data['avatar'],  'firstname': req_data['firstname'], 'lastname': req_data['lastname'], 'email':req_data['email'], 'created_on': req_data['created_on'] })
-        add_room(proposal_id, data['project_title'], developerId, data['avatar'],  data['firstname'], data['lastname'], data['email'], data['created_on'])
-    
-    
+        # Create new chat room
+        add_room(proposal_id, created_on, room_members)
 
     return jsonify({"result": 'proposal successfully sent'})
 
@@ -668,6 +703,18 @@ def new_chat_message():
 
     except Exception as e:
         return jsonify({"data": {"error_msg": str(e)}})
+
+@app.route('/list_room_members', methods=['GET'])
+def list_room_members():
+    try:
+        userId = request.args.get('id')
+        rooms = database['room_members'].find({"userId":userId}, {'_id': 0}).sort('created_on', -1)
+        rooms = json.loads(json_util.dumps(rooms))
+        return jsonify({"result": list(rooms)})
+
+    except Exception as e:
+        return jsonify({"result":{"error_msg": str(e)}})
+
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0',port=5008, debug=True)
