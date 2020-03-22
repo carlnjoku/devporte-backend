@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, make_response
+from flask import Flask, request, jsonify, make_response, render_template
 import shutil
 import os
 from db import database
@@ -17,15 +17,15 @@ from flask_mail import Mail, Message
 
 app = Flask(__name__)
 
-app.config['MAIL_SERVER'] = 'smtp.gmail.com'
+app.config['MAIL_SERVER'] = 'mail.devporte.com'
 app.config['MAIL_PORT'] = 587
 app.config['MAIL_USE_SSL'] = False
 app.config['MAIL_USE_TLS'] = True
 #Gmail SMTP port (TLS): 587.
 #SMTP port (SSL): 465.
 #SMTP TLS/SSL required: yes.
-app.config['MAIL_USERNAME'] = 'carlnjoku@gmail.com'
-app.config['MAIL_PASSWORD'] = 'angel@4340'
+app.config['MAIL_USERNAME'] = 'info@devporte.com'
+app.config['MAIL_PASSWORD'] = 'angel4340'
 
 mail = Mail(app)
 
@@ -33,12 +33,27 @@ mail = Mail(app)
 cors = CORS(app, resources={r"/*": {"origins": "*"}})
 
 
-@app.route('/')
+@app.route('/send_email_confirmation', methods = ['POST'])
 def index():
+    fullname = "Carl Njoku"
+    firstname = "Carl",
+    userId = "5e5273885e5618ed65a40fc7"
     message_body = "Verify your email address to complete registration  Hi Chinedu,Thanks for your interest in joining Upwork! To complete your registration, we need you to verify your email address.Verify Email Please note that not all applications to join Upwork are accepted. We will notify you of our decision by email within 24 hours.Thanks for your time,The Upwork Team"
-    msg = Message('Hello there !', sender="admin@devporte.com", recipients=['flavoursoft@gmal.com'] )
+    subject = "Email confirmation"
+    msg = Message(
+        subject, 
+        recipients=['flavoursoft@yahoo.com', 'flavoursoft@gmail.com'], 
+        body = 'Hello '+fullname+',\nYou or someone else has requested that a new password be generated for your account. If you made this request, then please follow this link:',
+        html = render_template(
+            'signup.html', 
+            firstname=firstname, 
+            message_body=message_body,
+            userId = userId
+        ),
+        sender=["Devporte", "signup-noreply@devporte.com"]
+    )
     mail.send(msg)
-    return "Hello world"
+    return jsonify({"msg":"Email confirmation sent"})
 
 
 if __name__ == '__main__':

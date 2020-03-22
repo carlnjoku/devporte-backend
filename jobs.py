@@ -1,7 +1,7 @@
 from flask import Flask, request, jsonify
 import shutil
 import os
-from db import database, add_room
+from db import database, add_room, send_notification
 import datetime
 import base64
 from flask_cors import CORS
@@ -14,6 +14,7 @@ import jwt
 import pandas as pd
 import numpy as np
 from bson import json_util
+from itertools import groupby
 
 
 
@@ -80,17 +81,37 @@ def new_job_post():
             'experience_level': req_data['experience_level'],
             'payment_type': req_data['payment_type'],
             'project_time': req_data['project_time'],
-            'created_on': req_data['created_on']
-
-
-            
+            'created_on': req_data['created_on']   
         }
+
+        experience_level = req_data['experience_level']
+        skills = req_data['expertise']
 
         
      
         data['_id'] = str(ObjectId())
         x = database["jobs"].insert_one(data)
-        return jsonify({"msg": "Job successfully created"})
+
+        usrs = database.users.aggregate([
+            {
+                "$match":{'primary_skills': { '$elemMatch': {'title': '12 Angry Men', 'year': 1957, 'title':'Fight Club', 'year':1999}}, 'experience_Level': experience_level},
+                
+            },
+            {
+                "$project": {"_id":1}
+            },
+            {
+                "$count": "firstname"
+            }
+            
+        ])
+
+        
+
+        if usrs is not None:
+            return jsonify({"data": list(usrs)})
+        else:
+            return jsonify({"data": {"message": "users"}})
 
     except Exception as e:
         return jsonify({"data": {"error_msg": str(e)}})
@@ -170,8 +191,9 @@ def get_project():
 def get_project_empId(current_user):
     try:
         employerId = request.args.get('id')
+        status = request.args.get('status')
         print(employerId)
-        projects = database['jobs'].find({"employerId": employerId})
+        projects = database['jobs'].find({"employerId": employerId, "status":status})
         if projects is not None:
             return jsonify({"data": list(projects)})
         else:
@@ -226,10 +248,13 @@ def new_proposal():
     res={}
   
     developerId = request.form['developerId']
+    employerId = request.form['employerId']
     projectId= request.form['projectId']
     project_title  = request.form['project_title']
     firstname  = request.form['firstname']
     lastname  = request.form['lastname']
+    employer_lastname = request.form['employer_lastname']
+    employer_firstname = request.form['employer_firstname']
     email = request.form['email']
     bid  = request.form['bid']
     estimated_finish_time  = request.form['estimated_finish_time']
@@ -242,6 +267,7 @@ def new_proposal():
    
     data =  {
         'developerId': developerId,
+        'employerId': employerId,
         'projectId' : projectId,
         'project_title'  : project_title,
         'firstname'  : firstname,
@@ -292,7 +318,7 @@ def new_proposal():
         proposal_id = database["proposal"].insert_one(data).inserted_id
         
         # Create new chat room
-        add_room(proposal_id, created_on, room_members)
+        add_room(proposal_id, employerId, developerId, created_on, room_members, firstname, lastname, avatar, employer_firstname, employer_lastname)
 
     return jsonify({"result": 'proposal successfully sent'})
 
@@ -434,6 +460,15 @@ def get_proposal_projectId():
     except Exception as e:
         return jsonify({"data": {"error_msg": str(e)}})
 
+@app.route('/get_one_proposal')
+def get_one_proposal():
+    try:
+        proposalId = request.args.get('proposalId')
+        proposal = database['proposal'].find_one({'_id':proposalId})
+
+        return jsonify({'result': proposal})
+    except Exception as e:
+        return jsonify({'data': {'error_msg':str(e)}})
 
 @app.route('/get_proposal_projectId_old', methods=['GET'])
 def get_proposal_projectId_old():
@@ -690,6 +725,20 @@ def get_milestones_projectId():
     except Exception as e:
         return jsonify({"data": {"error_msg": str(e)}})
 
+
+@app.route('/get_chat_messages', methods=['GET'])
+def get_chat_messages():
+    try:
+        room = request.args.get('room')
+        messages = database['chatmessages'].find({"room": room})
+        if messages is not None:
+            return jsonify({"data": list(json.loads(json_util.dumps(messages)))}) 
+            
+        else:
+            return jsonify({"data": {"message": "No messages found"}})
+    except Exception as e:
+        return jsonify({"data": {"error_msg": str(e)}})
+
 @app.route('/new_chat_message', methods=['POST'])
 def new_chat_message():
     
@@ -716,5 +765,87 @@ def list_room_members():
         return jsonify({"result":{"error_msg": str(e)}})
 
 
+@app.route('/get_rooms_by_user', methods=['GET'])
+def get_rooms_by_user():
+    try:
+    
+        userId = request.args.get('_id')
+  
+        rooms = database['rooms'].find({'developerId': userId})
+       
+        return jsonify({"data": list(json.loads(json_util.dumps(rooms)))})         
+    except Exception as e:
+        return jsonify({"data": {"error_msg": str(e)}})
+
+@app.route('/get_rooms_by_user_employer', methods=['GET'])
+def get_rooms_by_user_employer():
+    try:
+    
+        userId = request.args.get('_id')
+  
+        rooms = database['rooms'].find({'employerId': userId})
+       
+        return jsonify({"data": list(json.loads(json_util.dumps(rooms)))})         
+    except Exception as e:
+        return jsonify({"data": {"error_msg": str(e)}})
+
+@app.route('/get_single_room_details', methods=['GET'])
+def get_single_room_details():
+    try:
+    
+        roomy = request.args.get('_id')
+  
+        room = database['rooms'].find_one({'room': roomy})
+       
+        return jsonify({"data": json_util.dumps(room)})         
+    except Exception as e:
+        return jsonify({"data": {"error_msg": str(e)}})
+
+    
+
+@app.route('/get_rooms_by_employer', methods=['GET'])
+def get_rooms_by_employer():
+    try:
+    
+        userId = request.args.get('_id')
+  
+        rooms = database['rooms'].find({'employerId': userId})
+       
+        return jsonify({"data": list(json.loads(json_util.dumps(rooms)))})         
+    except Exception as e:
+        return jsonify({"data": {"error_msg": str(e)}})
+
+
+"""
+@app.route('/get_rooms_by_user', methods=['GET'])
+def get_rooms_by_user():
+    try:
+    
+        userId = request.args.get('_id')
+  
+        results = database.rooms.aggregate([
+            {
+            "$match": { 'developerId': userId}
+            },
+            {
+                "$lookup": {
+                "from": 'chatmessages',
+                "foreignField": 'room',
+                "localField": 'room',
+                "as": 'chatmessage'
+                }
+            },
+            {
+                "$unwind":"$chatmessage"
+            }  
+        ])
+       
+       
+        
+     
+        return jsonify({"data": list(json.loads(json_util.dumps(results)))})         
+    except Exception as e:
+        return jsonify({"data": {"error_msg": str(e)}})
+"""
 if __name__ == '__main__':
     app.run(host='0.0.0.0',port=5008, debug=True)

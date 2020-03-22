@@ -16,6 +16,7 @@ import jwt
 
 from firbase_storage import firebase
 import pyrebase
+from  mailgun import send_confirmation_email 
 
 
 config = {
@@ -94,6 +95,70 @@ def get_employer():
     except Exception as e:
         return jsonify({"data": {"error_msg": str(e)}})     
 
+
+@app.route('/send_email_confirmation', methods=['POST'])
+def send_email_confirmation():
+    
+    try:
+        
+        req_data = request.get_json()
+       #mailgun(req_data)
+        """
+        member = database['users'].find_one({"email": email}, {"_id": 0})
+        if member is not None:
+            return jsonify({"data": {"message": "User already exisits"}})
+        else:
+            req_data['_id'] = str(ObjectId())
+            
+            req_data['password'] = generate_password_hash(req_data['password'], method='sha256')
+            
+            x = database["users"].insert_one(req_data).inserted_id
+            new_data = {
+                'userId':x, 
+                'email': req_data['email'], 
+                'firstname': req_data['firstname'],
+                'lastname': req_data['lastname'],
+                'user_type': req_data['user_type']
+            }
+            return jsonify({"result": new_data})
+        """
+        return jsonify({"data":"sent"})
+
+    except Exception as e:
+        return jsonify({"data": {"error_msg": str(e)}})
+
+@app.route('/do_email_confirmation', methods=['GET'])
+def do_email_confirmation():
+    
+    try:
+        
+        id = request.args.get('id')
+
+        print(id)
+        member = database['users'].find_one({"_id": id})
+        if member is not None:
+            database['users'].update({"_id": id}, {"$set": {'confirm_email':True}})
+            return jsonify({"data": {"msg": "Email successfully confirmed"}})
+        else:
+            return jsonify({"msg": "Users does not exist"})
+            
+    except Exception as e:
+        return jsonify({"data": {"error_msg": str(e)}})
+
+
+@app.route('/get_limited_user_detail', methods=['GET'])
+def get_limited_user_detail():
+    try:
+        dev_id = request.args.get('_id')
+        print(dev_id)
+        dev = database['users'].find_one({"_id": dev_id}, {'_id':1, 'firstname': 1, 'email': 1, 'confirm_email': 1, 'primary_skills': 1})
+        if dev is not None:
+            return jsonify({"data": dev})
+        else:
+            return jsonify({"data": {"message": "User not Found"}})
+    except Exception as e:
+        return jsonify({"data": {"error_msg": str(e)}})    
+
 @app.route('/signup', methods=['POST'])
 def newUser_old():
     
@@ -110,8 +175,15 @@ def newUser_old():
             
             req_data['password'] = generate_password_hash(req_data['password'], method='sha256')
             
-            x = database["users"].insert_one(req_data)
-            return jsonify({"result": req_data})
+            x = database["users"].insert_one(req_data).inserted_id
+            new_data = {
+                'userId':x, 
+                'email': req_data['email'], 
+                'firstname': req_data['firstname'],
+                'lastname': req_data['lastname'],
+                'user_type': req_data['user_type']
+            }
+            return jsonify({"result": new_data})
 
     except Exception as e:
         return jsonify({"data": {"error_msg": str(e)}})
@@ -138,7 +210,7 @@ def login():
         
         #generate token 
         token = jwt.encode({'userId':user['_id'], 'email':user['email'], 'exp':datetime.datetime.utcnow() + datetime.timedelta(minutes=30)}, app.config['SECRET_KEY'])
-        return jsonify({'token': token.decode('UTF-8'), 'user_type' : user['user_type'], 'userId':user['_id'], 'loggedIn': True})
+        return jsonify({'token': token.decode('UTF-8'), 'user_type' : user['user_type'], 'email': user['email'], 'userId':user['_id'], 'loggedIn': True})
     
     #return jsonify({'message':'Could not verify account'})
     return make_response('Could not verify', 401, {'WWW-Authenticate' : 'Basic realm = "Login required"'})
@@ -496,7 +568,99 @@ def list_developer_secondary_skills():
 
 
 
+# Technology & tools
+
+
+@app.route('/add_tool', methods=['POST'])
+def new_tech():
+    
+    try:
+        
+        req_data = request.get_json()
+        
+        req_data['_id'] = str(ObjectId())
+        x = database["technologies"].insert_one(req_data)
+        return jsonify({"msg": "Technology successfully created"})
+
+    except Exception as e:
+        return jsonify({"data": {"error_msg": str(e)}})
+
+
+@app.route('/edit_tool', methods=['PUT'])
+def edit_tech():
+    
+    try:
+        
+        req_data = request.get_json()
+        
+        id = req_data['_id']
+
+        print(req_data)
+        member = database['technologies'].find_one({"_id": id})
+        if member is not None:
+            
+            database['technologies'].update({"_id": id}, {"$set": req_data},
+                                                        upsert=True)
+            return jsonify({"data": {"msg": "Technoloy successfully updated"}})
+        else:
+            return jsonify({"msg": "Technology does not exist"})
+            
+    except Exception as e:
+        return jsonify({"data": {"error_msg": str(e)}})
+
+
+@app.route('/list_tool', methods=['GET'])
+def list_tool():
+    try:
+        tech = database['technologies'].find({}, {'_id': 0})
+        print(tech.count())
+        #return jsonify({"data": candidates.count()})
+        return jsonify({"data": list(tech)})
+    except Exception as e:
+        return jsonify({"data": {"error_msg": str(e)}})
+
+# Get tools for add profile, add portfolio and new project
+@app.route('/get_tools', methods=['GET'])
+def get_tools():
+    try:
+        tech = database['technologies'].find({}, {'_id': 0, 'tool_name':1})
+        print(tech.count())
+        #return jsonify({"data": candidates.count()})
+        return jsonify({"data": list(tech)})
+    except Exception as e:
+        return jsonify({"data": {"error_msg": str(e)}})
+
+@app.route('/get_tech', methods=['GET'])
+def get_tech():
+    try:
+        tech_id = request.args.get('_id')
+        print(tech_id)
+        tech = database['technologies'].find_one({"_id": tech_id})
+        if tech is not None:
+            return jsonify({"data": tech})
+        else:
+            return jsonify({"data": {"message": "Technology not Found"}})
+    except Exception as e:
+        return jsonify({"data": {"error_msg": str(e)}})
+
+@app.route('/delete_tech', methods=['GET'])
+def delete_tech():
+    try:
+        tech_id = request.args.get('_id')
+        print(tech_id)
+        tech = database['technologies'].find_one({"_id": tech_id})
+        if tech is not None:
+            database['technologies'].remove({"_id": tech_id})
+            return jsonify({"data": {"msg": "Technology was successfully removed"}})
+        else:
+            return jsonify({"data": {"message": "Technology not Found"}})
+    except Exception as e:
+        return jsonify({"data": {"error_msg": str(e)}})
 
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0',port=5010, debug=True)
+
+
+
+    
