@@ -1,0 +1,175 @@
+[{
+	"_id": {
+		"$oid": "5c419cc99e663515b651916f"
+	},
+	"id": "85001512CF",
+	"results": [{
+		"Subject": "ENGLISH",
+		"SGrade": "C6  ",
+		"Sitting": "1",
+		"ExamName": "SSCE",
+		"ExamYear": "2018",
+		"ExamNumber": "4012305024",
+		"SVGrade": "C6",
+		"exammonth": "MAY/JUN"
+	}, {
+		"Subject": "MATHEMATICS",
+		"SGrade": "C5  ",
+		"Sitting": "1",
+		"ExamName": "SSCE",
+		"ExamYear": "2018",
+		"ExamNumber": "4012305024",
+		"SVGrade": "C5",
+		"exammonth": "MAY/JUN"
+	}, {
+		"Subject": "CRK",
+		"SGrade": "B3  ",
+		"Sitting": "1",
+		"ExamName": "SSCE",
+		"ExamYear": "2018",
+		"ExamNumber": "4012305024",
+		"SVGrade": "B3",
+		"exammonth": "MAY/JUN"
+	}, {
+		"Subject": "ECONOMICS",
+		"SGrade": "B3  ",
+		"Sitting": "1",
+		"ExamName": "SSCE",
+		"ExamYear": "2018",
+		"ExamNumber": "4012305024",
+		"SVGrade": "B3",
+		"exammonth": "MAY/JUN"
+	}, {
+		"Subject": "GOVERNMENT",
+		"SGrade": "B2  ",
+		"Sitting": "1",
+		"ExamName": "SSCE",
+		"ExamYear": "2018",
+		"ExamNumber": "4012305024",
+		"SVGrade": "B2",
+		"exammonth": "MAY/JUN"
+	}, {
+		"Subject": "LITNENGLISH",
+		"SGrade": "E8  ",
+		"Sitting": "1",
+		"ExamName": "SSCE",
+		"ExamYear": "2018",
+		"ExamNumber": "4012305024",
+		"SVGrade": "E8",
+		"exammonth": "MAY/JUN"
+	}, {
+		"Subject": "CIVIC EDUCATION",
+		"SGrade": "B3  ",
+		"Sitting": "1",
+		"ExamName": "SSCE",
+		"ExamYear": "2018",
+		"ExamNumber": "4012305024",
+		"SVGrade": "B3",
+		"exammonth": "MAY/JUN"
+	}, {
+		"Subject": "BIOLOGY",
+		"SGrade": "B3  ",
+		"Sitting": "1",
+		"ExamName": "SSCE",
+		"ExamYear": "2018",
+		"ExamNumber": "4012305024",
+		"SVGrade": "B3",
+		"exammonth": "MAY/JUN"
+	}, {
+		"Subject": "FISHERIES",
+		"SGrade": "C4  ",
+		"Sitting": "1",
+		"ExamName": "SSCE",
+		"ExamYear": "2018",
+		"ExamNumber": "4012305024",
+		"SVGrade": "C4",
+		"exammonth": "MAY/JUN"
+	}]
+} ,{
+	"_id": {
+		"$oid": "5c419cca9e663515b6519177"
+	},
+	"id": "85002995DI",
+	"results": [{
+		"Subject": "ENGLISH",
+		"SGrade": "B3  ",
+		"Sitting": "1",
+		"ExamName": "SSCE",
+		"ExamYear": "2013",
+		"ExamNumber": "4331522022",
+		"SVGrade": "B3",
+		"exammonth": "MAY/JUN"
+	}, {
+		"Subject": "MATHEMATICS",
+		"SGrade": "A1  ",
+		"Sitting": "1",
+		"ExamName": "SSCE",
+		"ExamYear": "2013",
+		"ExamNumber": "4331522022",
+		"SVGrade": "A1",
+		"exammonth": "MAY/JUN"
+	}, {
+		"Subject": "PHYSICS",
+		"SGrade": "B3  ",
+		"Sitting": "1",
+		"ExamName": "SSCE",
+		"ExamYear": "2013",
+		"ExamNumber": "4331522022",
+		"SVGrade": "B3",
+		"exammonth": "MAY/JUN"
+	}, {
+		"Subject": "CHEMISTRY",
+		"SGrade": "A1  ",
+		"Sitting": "1",
+		"ExamName": "SSCE",
+		"ExamYear": "2013",
+		"ExamNumber": "4331522022",
+		"SVGrade": "A1",
+		"exammonth": "MAY/JUN"
+	}, {
+		"Subject": "BIOLOGY",
+		"SGrade": "C5  ",
+		"Sitting": "1",
+		"ExamName": "SSCE",
+		"ExamYear": "2013",
+		"ExamNumber": "4331522022",
+		"SVGrade": "C5",
+		"exammonth": "MAY/JUN"
+	}, {
+		"Subject": "FOOD & NUTRITION",
+		"SGrade": "A1  ",
+		"Sitting": "1",
+		"ExamName": "SSCE",
+		"ExamYear": "2013",
+		"ExamNumber": "4331522022",
+		"SVGrade": "A1",
+		"exammonth": "MAY/JUN"
+	}, {
+		"Subject": "ECONOMICS",
+		"SGrade": "C4  ",
+		"Sitting": "1",
+		"ExamName": "SSCE",
+		"ExamYear": "2013",
+		"ExamNumber": "4331522022",
+		"SVGrade": "C4",
+		"exammonth": "MAY/JUN"
+	}, {
+		"Subject": "CRK",
+		"SGrade": "B3  ",
+		"Sitting": "1",
+		"ExamName": "SSCE",
+		"ExamYear": "2013",
+		"ExamNumber": "4331522022",
+		"SVGrade": "B3",
+		"exammonth": "MAY/JUN"
+	}, {
+		"Subject": "FURTHERMATHS",
+		"SGrade": "B3  ",
+		"Sitting": "1",
+		"ExamName": "SSCE",
+		"ExamYear": "2013",
+		"ExamNumber": "4331522022",
+		"SVGrade": "B3",
+		"exammonth": "MAY/JUN"
+	}]
+}]

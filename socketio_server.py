@@ -1,8 +1,9 @@
 from flask import Flask, request, jsonify
 from flask_socketio import SocketIO, emit,send, join_room
 from flask_cors import CORS
-from db import add_room, add_room_members, save_message, save_project, save_project_feeds
-from db import database
+from db import add_room, add_room_members, save_message, save_project_feeds
+from db import database 
+from jobs import upload_files
 from bson.objectid import ObjectId
 from bson import json_util
 import json
@@ -102,26 +103,29 @@ def handle_typing(data):
 def handle_new_job_post(payload):
     
     #room = '5e47e537c1f8d023941a76c5'
-    employerId = payload['employerId']
-    employer_name = payload['employer_name']
-    firstname = payload['firstname']
-    lastname = payload['lastname']
-    email = payload['email']
-    title = payload['title']
-    job_description = payload['job_description']
+    #employerId = payload['employerId']
+    projectId = payload['projectId']
     project_type = payload['project_type']
     expertise = payload['expertise']
     experience_level = payload['experience_level']
-    payment_type = payload['payment_type']
-    project_time = payload['project_time']
-    created_on = payload['created_on']
+    created_on = payload['created_on'],
     
-    
-    #Save project post 
-    projectId = save_project(employerId, employer_name, firstname, lastname, email, title, job_description, project_type, expertise, experience_level, payment_type, project_time,created_on)
+    print(project_type)
 
-    print('ProjectId: '+ projectId)
+    #print('files' +file)
     
+    #Check if file is submitted
+    #if len(file) > 0:
+        #uploaded_files = upload_files(file)
+
+    #print(uploaded_files)
+    #Save project post 
+    #projectId = save_project(employerId, employer_name, firstname, lastname, email, title, job_description, project_type, expertise, experience_level, payment_type, project_time, file, status, initial_route, created_on)
+
+    #print('ProjectId: '+ projectId)
+    
+    #Match jobs with freelancers
+
     users = database.users.aggregate([
             
             {
@@ -134,9 +138,10 @@ def handle_new_job_post(payload):
         ])
 
     users = list(users)
-    print(list(users))
+    
+    #print(list(users))
     for user in users:
-        print(user['_id'])
+        #print(user['_id'])
         msg = {'userId':user['_id'], 'jobTitile':payload['title'] }
         feed = {'_id': str(ObjectId()), 'userId':user['_id'], 'projectId': projectId, 'created_on':created_on }
 

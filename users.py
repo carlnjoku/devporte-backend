@@ -209,7 +209,7 @@ def login():
         print( user['_id'])
         
         #generate token 
-        token = jwt.encode({'userId':user['_id'], 'email':user['email'], 'exp':datetime.datetime.utcnow() + datetime.timedelta(minutes=30)}, app.config['SECRET_KEY'])
+        token = jwt.encode({'userId':user['_id'], 'email':user['email'], 'exp':datetime.datetime.utcnow() + datetime.timedelta(days=30)}, app.config['SECRET_KEY'])
         return jsonify({'token': token.decode('UTF-8'), 'user_type' : user['user_type'], 'email': user['email'], 'userId':user['_id'], 'loggedIn': True})
     
     #return jsonify({'message':'Could not verify account'})

@@ -1,6 +1,7 @@
 from pymongo import MongoClient
 from bson.objectid import ObjectId
-from flask import Flask, request, jsonify, make_response
+from flask import Flask, request, jsonify
+
 
 db_name = 'devporte'
 db_host_mongo = '0.0.0.0'
@@ -19,8 +20,9 @@ users_collection = database['users']
 project_collection = database['jobs']
 project_feeds_colection = database['project_feeds']
 
-def add_room(room, employerId, developerId, created_on, room_members_data, firstname, lastname, avatar, employer_firstname, employer_lastname):
-    room_id = rooms_collection.insert_one({'room':room, 'employerId': employerId, 'developerId': developerId, 'created_on':created_on, 'firstname':firstname, 'lastname':lastname, 'avatar':avatar, 'employer_firstname':employer_firstname, 'employer_lastname':employer_lastname }).inserted_id
+
+def add_room(room, employerId, developerId, created_on, room_members_data, firstname, lastname, avatar, employer_firstname, employer_lastname, project_title):
+    room_id = rooms_collection.insert_one({'room':room, 'employerId': employerId, 'developerId': developerId, 'created_on':created_on, 'firstname':firstname, 'lastname':lastname, 'avatar':avatar, 'employer_firstname':employer_firstname, 'employer_lastname':employer_lastname, 'project_title':project_title }).inserted_id
     add_room_members(room_id,room, room_members_data)
     #save_message(room_id, room, message_body, senderId, created_on, recepientId, recepient_avatar, recepient_fname, recepient_lname, recepient_email)
     return room_id
@@ -59,11 +61,16 @@ def send_notification(expertise, experience_level):
     #print('you')
     return (users)
 
-def save_project(employerId, employer_name, firstname, lastname, email, title, job_description, project_type, expertise, experience_level, payment_type, project_time,created_on):
-    projectId = project_collection.insert_one({'_id': str(ObjectId()), 'employerId':employerId, 'employer_name':employer_name, 'firstname':firstname, 'lastname':lastname, 'email':email, 'title':title, 'job_description':job_description, 'project_type':project_type, 'expertise':expertise, 'experience_level':experience_level, 'payment_type':payment_type, 'project_time':project_time,'created_on':created_on}).inserted_id
+#def save_project(employerId, employer_name, firstname, lastname, email, title, job_description, project_type, expertise, experience_level, payment_type, project_time, status, initial_route, upload_files, created_on):
+    #projectId = project_collection.insert_one({'_id': str(ObjectId()), 'employerId':employerId, 'employer_name':employer_name, 'firstname':firstname, 'lastname':lastname, 'email':email, 'title':title, 'job_description':job_description, 'project_type':project_type, 'expertise':expertise, 'experience_level':experience_level, 'payment_type':payment_type, 'project_time':project_time, 'project_files':upload_files, 'status':status, 'initial_route': initial_route, 'created_on':created_on}).inserted_id
     
-    return (projectId)
+    #return (projectId)
+    
 
 def save_project_feeds(feed):
     feed = project_feeds_colection.insert_one(feed)
+
+def update_project(projectId, bid):
+    project_collection.update_one({'_id':projectId}, {'$addToSet':{'bid':int(bid)}})
+
 

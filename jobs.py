@@ -1,7 +1,7 @@
 from flask import Flask, request, jsonify
 import shutil
 import os
-from db import database, add_room, send_notification
+from db import database, add_room, send_notification, update_project
 import datetime
 import base64
 from flask_cors import CORS
@@ -52,6 +52,9 @@ ALLOWED_EXTENSIONS_ALL_PROFILE = set(['png', 'jpg', 'jpeg', 'gif'])
 UPLOAD_FOLDER = 'media'
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
+UPLOAD_PROJECT_FOLDER = 'project_files'
+app.config['UPLOAD_PROJECT_FOLDER'] = UPLOAD_PROJECT_FOLDER
+
 def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS_ALL
@@ -59,6 +62,99 @@ def allowed_file(filename):
 def allowed_file_profile(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS_ALL_PROFILE
+
+
+    
+@app.route('/upload_multiple_files', methods=['POST'])
+def upload_files():
+
+    try:
+
+        res={}
+        uploaded_files = request.files.getlist("file")
+        print(upload_files)
+        filenames = []
+        for file in uploaded_files:
+            # Check if the file is one of the allowed types/extensions
+            if file:
+                # Make the filename safe, remove unsupported chars
+                get_filename = secure_filename(file.filename)
+                filename, file_extension = os.path.splitext(get_filename)
+
+                # Generate new file name
+                filename = filename+file_extension
+
+                filename = filename.replace(' ', '-').lower()
+
+                filename = os.path.join(app.config['UPLOAD_PROJECT_FOLDER'], filename)
+
+
+                if not os.path.exists(UPLOAD_PROJECT_FOLDER):
+                    os.makedirs(UPLOAD_PROJECT_FOLDER)
+
+                temp_file = os.path.join(app.config['UPLOAD_PROJECT_FOLDER'], "temp"+file_extension)
+                
+                file.save(temp_file)
+                
+                storage.child(filename).put(temp_file)
+                
+
+                # Get image url from firebase
+                img_url = storage.child(filename).get_url(None)
+
+                print(img_url)
+                
+                shutil.copy(temp_file,filename)
+                file = request.files['file']
+
+                res["project_files"] = filename
+                
+                os.remove(temp_file)
+
+                # Remove the dot in the extension
+                original_file_extension = file_extension.replace('.', '')
+                #filenames.append(img_url)
+                filenames.append({'img_url':img_url, 'filename':get_filename, 'extention':original_file_extension})
+                
+        print(request.form['employerId'])
+
+        data = {
+           'employerId': request.form['employerId'],
+           'employer_name': request.form['employer_name'],
+           'firstname': request.form['firstname'],
+           'lastname': request.form['lastname'],
+           'email': request.form['email'],
+           'title': request.form['title'],
+           'titleId': request.form['titleId'],
+           'job_description': request.form['job_description'],
+           'project_type': request.form['project_type'],
+           'required_skills': json.loads(request.form['required_skills']),
+           'experience_level': request.form['experience_level'],
+           'payment_type': request.form['payment_type'],
+           'budget' : request.form['budget'],
+           'bid': [],
+           'project_timeline': request.form['project_timeline'],
+           'created_on': request.form['created_on'],
+           'initial_route':'details',
+           'status': 'open'
+           #'files':filenames
+        }
+        
+        
+
+        data['_id'] = str(ObjectId())
+        projectId = database["jobs"].insert_one(data).inserted_id
+        
+       
+        if len(filenames) is not None :
+            # create file collection for this project
+            database["files"].insert_one({"_id":str(ObjectId()), "projectId":projectId, "files":filenames})
+        
+        return jsonify({"data": projectId})
+
+    except Exception as e:
+        return jsonify({"data": {"error_msg": str(e)}})
+
 
 @app.route('/new_project_post', methods=['POST'])
 def new_job_post():
@@ -77,11 +173,12 @@ def new_job_post():
             'job_description': req_data['job_description'],
             'project_type': req_data['project_type'],
             'expertise': req_data['expertise'],
-            'team_number': req_data['team_number'],
             'experience_level': req_data['experience_level'],
             'payment_type': req_data['payment_type'],
             'project_time': req_data['project_time'],
-            'created_on': req_data['created_on']   
+            'created_on': req_data['created_on'],
+            'initial_route':'details',
+            'status': 'open' 
         }
 
         experience_level = req_data['experience_level']
@@ -92,6 +189,7 @@ def new_job_post():
         data['_id'] = str(ObjectId())
         x = database["jobs"].insert_one(data)
 
+        #Match jobs with freelancers
         usrs = database.users.aggregate([
             {
                 "$match":{'primary_skills': { '$elemMatch': {'title': '12 Angry Men', 'year': 1957, 'title':'Fight Club', 'year':1999}}, 'experience_Level': experience_level},
@@ -107,12 +205,24 @@ def new_job_post():
         ])
 
         
-
+        # Get list of matching freelancers and push to socket to distribute post to freelancers
         if usrs is not None:
             return jsonify({"data": list(usrs)})
         else:
             return jsonify({"data": {"message": "users"}})
 
+    except Exception as e:
+        return jsonify({"data": {"error_msg": str(e)}})
+
+
+@app.route('/get_recent_projects', methods=['GET'])
+def get_recent_projects():
+    try:
+    
+        employerId = request.args.get('_id')
+
+        recent_projects = list(database['jobs'].find({"$and": [{"employerId": employerId}, {"status": {"$ne": "completed"}} ]}).limit(5))
+        return jsonify({"data": list(recent_projects)})         
     except Exception as e:
         return jsonify({"data": {"error_msg": str(e)}})
 
@@ -175,9 +285,9 @@ def list_jobs():
 @app.route('/get_project', methods=['GET'])
 def get_project():
     try:
-        projectId = request.args.get('_id')
-        print(projectId)
-        project = database['jobs'].find_one({"_id": projectId})
+        titleId = request.args.get('_id')
+        print(titleId)
+        project = database['jobs'].find_one({"titleId": titleId})
         if project is not None:
             return jsonify({"data": project})
         else:
@@ -250,6 +360,7 @@ def new_proposal():
     developerId = request.form['developerId']
     employerId = request.form['employerId']
     projectId= request.form['projectId']
+    titleId = request.form['titleId']
     project_title  = request.form['project_title']
     firstname  = request.form['firstname']
     lastname  = request.form['lastname']
@@ -270,6 +381,7 @@ def new_proposal():
         'employerId': employerId,
         'projectId' : projectId,
         'project_title'  : project_title,
+        'titleId' : titleId,
         'firstname'  : firstname,
         'lastname'  : lastname,
         'email' : email,
@@ -316,9 +428,16 @@ def new_proposal():
         data['_id'] = str(ObjectId())
 
         proposal_id = database["proposal"].insert_one(data).inserted_id
-        
+    
+        if proposal_id is not None:
+            #Update project initial_route to proposals
+            x = database['jobs'].update_one({'_id':projectId}, {"$set": {'initial_route':'proposals'}})
+           
         # Create new chat room
-        add_room(proposal_id, employerId, developerId, created_on, room_members, firstname, lastname, avatar, employer_firstname, employer_lastname)
+        add_room(proposal_id, employerId, developerId, created_on, room_members, firstname, lastname, avatar, employer_firstname, employer_lastname, project_title)
+
+        # Update project bid 
+        update_project(projectId, bid)
 
     return jsonify({"result": 'proposal successfully sent'})
 
@@ -431,7 +550,7 @@ def get_proposal_projectId():
     
         projectId = request.args.get('_id')
   
-        proposals = list(database['jobs'].find({"projectId": projectId}))
+        #proposals = list(database['jobs'].find({"projectId": projectId}))
         
         #print(proposals)
 
@@ -460,6 +579,8 @@ def get_proposal_projectId():
     except Exception as e:
         return jsonify({"data": {"error_msg": str(e)}})
 
+
+
 @app.route('/get_one_proposal')
 def get_one_proposal():
     try:
@@ -484,6 +605,69 @@ def get_proposal_projectId_old():
     except Exception as e:
         return jsonify({"data": {"error_msg": str(e)}})
 
+@app.route('/new_contract_hire', methods =['POST'])
+def new_contract_hire():
+    try:
+        
+        developerId = request.form['developerId']
+        projectId = request.form['projectId']
+        developerId = request.form['developerId']
+        developer_firstname = request.form['developer_firstname']
+        developer_lastname = request.form['developer_lastname']
+        employerId = request.form['employerId']
+        employer_firstname = request.form['employer_firstname']
+        employer_lastname = request.form['employer_lastname']
+        companyname= request.form['companyname']
+        title = request.form['title']
+        job_description= request.form['job_description']
+        payment_type= request.form['payment_type']
+        total_project_cost= request.form['total_project_cost']
+        milestone_task= request.form['milestone_task']
+        milestone_amount= request.form['milestone_amount']
+        milestone_due_date= request.form['milestone_due_date']
+        created_on = request.form['created_on']
+
+        milestone_data =[{
+             'id': 1,
+             'milestone_task' : milestone_task,
+             'milestone_amount' : milestone_amount,
+             'milestone_due_date' : milestone_due_date,
+             'status' : 'In progress'
+        }]
+
+        data = {
+            'developerId' : developerId,
+            'projectId' : projectId,
+            'developerId' : developerId,
+            'developer_firstname' : developer_firstname,
+            'developer_lastname' : developer_lastname,
+            'employerId' : employerId,
+            'employer_firstname' : employer_firstname,
+            'employer_lastname' : employer_lastname,
+            'companyname' : companyname,
+            'title' : title,
+            'job_description': job_description,
+            'payment_type': payment_type,
+            'total_project_cost': total_project_cost,
+            'milestone' : milestone_data
+        }
+
+        print(data)
+        
+        data['_id'] = data['_id'] = str(ObjectId())
+        id = database["contracts"].insert_one(data).inserted_id
+
+        if id is not None:
+            # Update project to inprogress / initial_route = inprogress
+            database["jobs"].update_one({"_id":projectId}, {"$set":{"status":"in-progress", "initial_route":"payments"}})
+        return jsonify({"data": id})
+    except Exception as e:
+        return jsonify({"data": {"error_msg": str(e)}})
+
+
+
+"""
+
 @app.route('/new_contract', methods=['POST'])
 def new_contract():
     
@@ -497,6 +681,7 @@ def new_contract():
 
     except Exception as e:
         return jsonify({"data": {"error_msg": str(e)}})
+"""
 
 @app.route('/get_chat_session_by_projectId', methods=['GET'])
 def get_chat_session_by_projectId():
@@ -520,6 +705,8 @@ def add_file():
     res = {}
 
     file = request.files['image']
+    print(file)
+
     if 'image' in request.files and allowed_file(file.filename) and 'employerId' in request.form and 'developerId' in request.form and 'projectId' in request.form  :
     
         employerId = request.form['employerId']
@@ -581,7 +768,7 @@ def add_file():
     #database['users'].update({'_id': memberID}, {"$set": {'profile_bg':profile_bg}})
 
     os.remove(temp_file)
-
+    
     return jsonify({"data": res})
 
 @app.route('/get_project_file_projectId', methods=['GET'])
@@ -697,13 +884,18 @@ def new_milestone():
     try:
         
         #convert form data to json
-        req_data = request.get_json()
-        
+        contractId = request.form['contractId']
 
-        print(req_data)
+        data = {
+             'milestone_task' : request.form['milestone_task'],
+             'milestone_amount' : request.form['milestone_amount'],
+             'milestone_due_date' : request.form['milestone_due_date'],
+             'status' : request.form['status'],
+        }
         
-        req_data['_id'] = str(ObjectId())
-        x = database["milestones"].insert_one(req_data)
+        check = database["contracts"].find_one({'_id':request.form['contractId']})
+        if check is not None:
+            x = database["contracts"].update_one({'contractId': contractId },  {'$inc': { 'id': 1 }}, {'milestone':data}, upsert = True)
         return jsonify({"msg": "Task successfully created"})
 
     except Exception as e:
@@ -717,9 +909,9 @@ def get_milestones_projectId():
         
         projectId = request.args.get('id')
         print(projectId)
-        tasks = database['milestones'].find({"projectId": projectId})
-        if tasks is not None:
-            return jsonify({"data": list(tasks)})
+        mtone = database['contracts'].find_one({"projectId": projectId})
+        if mtone is not None:
+            return jsonify({"data": mtone})
         else:
             return jsonify({"data": {"message": "No milestone found"}})
     except Exception as e:
