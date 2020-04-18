@@ -85,11 +85,12 @@ def user_type(current_user):
 @app.route('/get_user', methods=['GET'])
 def get_employer():
     try:
-        dev_id = request.args.get('_id')
-        print(dev_id)
-        dev = database['users'].find_one({"_id": dev_id})
-        if dev is not None:
-            return jsonify({"data": dev})
+        user_id = request.args.get('_id')
+        print(user_id)
+        
+        user = database['users'].find_one({"_id": user_id})
+        if user is not None:
+            return jsonify({"data": user})
         else:
             return jsonify({"data": {"message": "User not Found"}})
     except Exception as e:

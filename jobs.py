@@ -15,6 +15,11 @@ import pandas as pd
 import numpy as np
 from bson import json_util
 from itertools import groupby
+import pycurl
+from urllib.parse import urlencode
+from io import StringIO
+
+
 
 
 
@@ -23,6 +28,26 @@ import pyrebase
 
 from users import token_required
 
+
+import braintree
+
+import hyperwallet
+
+gateway = braintree.BraintreeGateway(
+    braintree.Configuration(
+        braintree.Environment.Sandbox,
+        merchant_id="qgc7sgct9mnbmpx5",
+        public_key="mbm6gsqbp8znnn8s",
+        private_key="a0a13d2f534b7999d18cb55272e0abb1"
+    )
+)
+
+api = hyperwallet.Api(
+    "restapiuser@39011931613",
+    "angel@4340",
+    "prg-bbfd3080-0a52-4802-8e7c-869f72518955",
+    "https://api.sandbox.hyperwallet.com/rest/v3/users"  
+)
 
 config = {
     
@@ -627,13 +652,17 @@ def new_contract_hire():
         milestone_due_date= request.form['milestone_due_date']
         created_on = request.form['created_on']
 
-        milestone_data =[{
-             'id': 1,
+        milestone_data ={
+             'developerId' : developerId,
+             'employerId': employerId,
+             'projectId': projectId,
+             'project_title' : title,
              'milestone_task' : milestone_task,
              'milestone_amount' : milestone_amount,
              'milestone_due_date' : milestone_due_date,
-             'status' : 'In progress'
-        }]
+             'status' : 'In progress',
+             'created_on' :created_on
+        }
 
         data = {
             'developerId' : developerId,
@@ -649,18 +678,25 @@ def new_contract_hire():
             'job_description': job_description,
             'payment_type': payment_type,
             'total_project_cost': total_project_cost,
-            'milestone' : milestone_data
+            'created_on': created_on
+            #'milestone' : milestone_data
         }
 
-        print(data)
+        #print(data)
         
-        data['_id'] = data['_id'] = str(ObjectId())
-        id = database["contracts"].insert_one(data).inserted_id
-
-        if id is not None:
+        data['_id'] = str(ObjectId())
+        contractId = database["contracts"].insert_one(data).inserted_id
+        
+        print("my id is"+ contractId)
+        if contractId is not None:
             # Update project to inprogress / initial_route = inprogress
             database["jobs"].update_one({"_id":projectId}, {"$set":{"status":"in-progress", "initial_route":"payments"}})
-        return jsonify({"data": id})
+            
+            milestone_data['_id'] = str(ObjectId())
+            milestone_data['contractId'] = contractId
+            database["milestones"].insert_one(milestone_data)
+
+        return jsonify({"data": "contractId"})
     except Exception as e:
         return jsonify({"data": {"error_msg": str(e)}})
 
@@ -885,18 +921,70 @@ def new_milestone():
         
         #convert form data to json
         contractId = request.form['contractId']
-
-        data = {
+       
+        milestone = {
+             'developerId' : request.form['developerId'],
+             'employerId' : request.form['employerId'],
+             'projectId' : request.form['projectId'], 
+             'project_title': request.form['title'],
              'milestone_task' : request.form['milestone_task'],
              'milestone_amount' : request.form['milestone_amount'],
              'milestone_due_date' : request.form['milestone_due_date'],
              'status' : request.form['status'],
+             "created_on" : request.form['created_on'],
+             'contractId' : request.form['contractId']
         }
+        
         
         check = database["contracts"].find_one({'_id':request.form['contractId']})
         if check is not None:
-            x = database["contracts"].update_one({'contractId': contractId },  {'$inc': { 'id': 1 }}, {'milestone':data}, upsert = True)
-        return jsonify({"msg": "Task successfully created"})
+            print(contractId)
+           
+            # Create milestone
+            milestone['_id'] = str(ObjectId())
+            database['milestones'].insert_one(milestone)
+            
+            # Check if customerId has been created 
+            cust = database["customers"].find_one({'employerId':request.form['employerId']})
+            if cust is None:
+                cust_data = {
+                    "first_name": request.form['firstname'],
+                    "last_name": request.form['lastname'],
+                    "company": request.form['company_name'],
+                    "email": request.form['email'],
+                }
+                # Create a new customer_id
+                result = gateway.customer.create(cust_data)
+               
+                # insert new customer details in transaction collection
+                data = {
+                    "firstname": request.form['firstname'],
+                    "lastname": request.form['lastname'],
+                    "company_name": request.form['company_name'],
+                    "email": request.form['email'],
+                    "employerId": request.form['employerId']
+                }
+                
+                data['_id'] = result.customer.id
+                database['customers'].insert_one(data)
+
+                
+                print('new customer')
+
+                return jsonify({"data": result.customer.id})
+
+                
+            else:
+                
+                # Customer already exist get the customerId
+                cust = database["customers"].find_one({'employerId':request.form['employerId']})
+                print('already exist')
+                print(cust['_id'])
+                return jsonify({"data":cust['_id']})
+                
+
+
+       #return jsonify({"msg": "Milestone successfully created"})
 
     except Exception as e:
         return jsonify({"data": {"error_msg": str(e)}})
@@ -909,14 +997,25 @@ def get_milestones_projectId():
         
         projectId = request.args.get('id')
         print(projectId)
-        mtone = database['contracts'].find_one({"projectId": projectId})
+        mtone = database['milestones'].find({"projectId": projectId})
         if mtone is not None:
-            return jsonify({"data": mtone})
+            return jsonify({"data": list(mtone)})
         else:
             return jsonify({"data": {"message": "No milestone found"}})
     except Exception as e:
         return jsonify({"data": {"error_msg": str(e)}})
 
+@app.route('/get_contract', methods = ['GET'])
+def get_contract():
+    try:
+        projectId = request.args.get('id')
+        contract = database['contracts'].find_one({"projectId": projectId})
+        if contract is not None:
+            return jsonify({"data": contract})
+        else:
+            return jsonify({"data": {"message": "No contract found"}})
+    except Exception as e:
+        return jsonify({"data": {"error_msg": str(e)}})
 
 @app.route('/get_chat_messages', methods=['GET'])
 def get_chat_messages():
@@ -1007,7 +1106,352 @@ def get_rooms_by_employer():
     except Exception as e:
         return jsonify({"data": {"error_msg": str(e)}})
 
+# Braintree payment
 
+@app.route('/create_customer', methods=['POST'])
+def create_customer():
+
+    req_data = request.get_json()
+    result = gateway.customer.create(req_data)
+
+    return result.customer.id
+    print(result.customer.id)
+
+    #result.is_success
+    # True
+
+    #result.customer.id
+    # e.g. 594019
+
+@app.route('/generate_token', methods=['GET'])
+def generate_token():
+
+    a_customer_id = request.args.get('_id') 
+
+    client_token = gateway.client_token.generate({
+        "customer_id": a_customer_id
+    })
+
+    #generate nouce
+
+    #print(client_token)
+    return jsonify({"data":client_token})
+
+@app.route('/pay', methods=['POST'])
+def pay():
+
+    try:
+        req_data = request.get_json()
+         
+        amount = int(req_data['amount'])
+        nonce_from_the_client = req_data['nonce_from_the_client']
+        customerId = req_data['customerId']
+        employerId = req_data['employerId']
+        projectId = req_data['projectId']
+        created_on = req_data['created_on']
+
+        result = gateway.transaction.sale({
+            "amount": amount,
+            "payment_method_nonce": nonce_from_the_client,
+            #"device_data": device_data_from_the_client,
+            "options": {
+                "submit_for_settlement": True
+            }
+        })
+
+        if result.is_success:
+            # See result.transaction for details
+            transactionId = result.transaction.id
+            msg = result.transaction.processor_response_text
+            
+            # Insert transaction collection to the database
+            tranctData = {
+                'transactionId': transactionId,
+                'customerId': customerId,
+                'employerId': employerId,
+                'projectId': projectId,
+                'amount': amount,
+                'created_on': created_on
+            }
+            
+
+            tracn = database["transactions"].insert_one(tranctData)
+
+            #Update employer by adding deposit 
+            y = database["users"].update_one({ '_id': employerId}, {'$inc': {'deposit': amount}})
+            print(y)            
+                        
+            response = {
+                'transactionId': transactionId,
+                'msg': msg
+            }
+            return jsonify({"data":response})
+        else:
+            # Handle errors
+            for error in result.errors.deep_errors:
+                print("attribute: " + error.attribute)
+                print("code: " + error.code)
+                print("message: " + error.message)
+            return jsonify({"data: " + error.message})
+    except Exception as e:
+        return jsonify({"result":{"error_msg": str(e)}})
+
+# Hyper Wallet (Payout)
+
+#Create user 
+@app.route('/api/v1/create_user', methods = ['POST'])
+def create_user():
+    try:
+        #req_data = request.get_json()
+        data = {
+            "clientUserId": request.form['clientUserId'],
+            "profileType": request.form['profileType'],
+            "firstName": request.form['firstName'],
+            "lastName": request.form['lastName'],
+            "email": request.form['email'],
+            #"stateProvince": request.form['stateProvince'],
+            "country": "NG",
+            "postalCode": request.form['postalCode'],
+            "programToken": "prg-15dc9c13-04b0-4bca-9bd4-80495b25a8ef",
+
+        }
+
+    
+        response = api.createUser(data)
+
+        # Get user token 
+        token = response.token
+
+        # Create payee account
+        data['_id'] = str(ObjectId())
+        data['payeeToken'] = token
+        database["payee"].insert_one(data)
+
+        
+        #Update user's collection
+        database["users"].update_one({'_id':request.form['clientUserId']}, {'$set':{'payeeToken':token}})
+        
+        #print(response)
+        return jsonify({"data": token})
+
+    except Exception as e:
+        return jsonify({"data":{"error_msg":str(e)}})
+
+"""
+@app.route('/api/v1/create_user1', methods = ['POST'])
+def create_user1():
+    try:
+        req_data = request.get_json()
+        
+        req_data['_id'] = str(ObjectId())
+        database["payee"].insert_one(req_data)
+        return jsonify({"data": req_data})
+
+    except Exception as e:
+        return jsonify({"data":{"error_msg":str(e)}})
+"""
+
+# List users
+@app.route('/api/v1/list_users', methods = ['GET'])
+def list_users():
+    response = api.listUsers()
+    print(response)
+
+    #return response
+    return jsonify({"data": "hello"})
+
+
+# Update user
+@app.route('/api/v1/update_user', methods = ['POST'])
+def update_user():
+    data = {
+        "firstName": "John",
+        "lastName": "Smith",
+        "email": "j@email.com"
+    }
+    response = api.updateUser("usr-f9154016-94e8-4686-a840-075688ac07b5", data)
+
+
+
+#Delete user
+@app.route('/api/v1/retrieve_user', methods = ['GET'])
+def retrieve_user():
+   # userToken = request.args.get('usr-07954d75-2f4f-4f76-af96-4c42d1b4da71') 
+    response = api.getUser('usr-07954d75-2f4f-4f76-af96-4c42d1b4da71')
+    print(response)
+    return jsonify({"data":"done"})
+
+
+# Get payee details from devporte database
+@app.route('/get_payee', methods = {'GET'})
+def get_payee():
+    try:
+        payeeToken = request.args.get('token') 
+        user = database["payee"].find_one({"payeeToken":payeeToken})
+
+        return jsonify({"data": user})
+    
+    except Exception as e:
+        return jsonify({"data":{"error_msg":str(e)}})
+
+
+# Create bank 
+@app.route('/api/v1/create_bank', methods = ['POST'])
+def create_bank():
+    try:
+        payeeToken = request.form['token']
+        userId = request.form[userId]
+        
+        data = {
+            "profileType": request.form["profileType"],
+            "transferMethodCountry": request.form["transferMethodCountry"],
+            "transferMethodCurrency": request.form["transferMethodCurrency"],
+            "type": request.form["type"],
+            "branchId": request.form["branchId"],
+            "bankAccountId": request.form["bankAccountId"],
+            "bankAccountPurpose": request.form["bankAccountPurpose"],
+            "firstName": request.form["firstName"],
+            "lastName": request.form["lastName"],
+            "country": request.form["country"],
+            "stateProvince": request.form["stateProvince"],
+            "addressLine1": request.form["addressLine1"],
+            "city": request.form["city"],
+            "postalCode": request.form["postalCode"],
+            "bankAccountRelationship": "SELF"
+        }
+
+        
+        response = api.createBankAccount(payeeToken, data)
+
+        # Get bank token
+        token = response.token
+
+        if token is not None:
+
+            data['_id'] = str(ObjectId())
+            data['payMethodToken'] = token
+            data['userId'] = userId
+            method = database['paymethods'].insert_one(data)
+
+        return jsonify({"data":token})
+    
+    except Exception as e:
+        return jsonify({"data":{"error_msg":str(e)}}) 
+
+
+
+@app.route('/retrieve/v1/retrieve_bank', methods = ['GET'])
+def retrieve_bank():
+    response = api.getBankAccount("usr-c4292f1a-866f-4310-a289-b916853939de", "trm-56b976c5-26b2-42fa-87cf-14b3366673c6");
+
+
+@app.route('/update_bank', methods = ['PUT'])
+def update_bank():
+    data = {
+        "bankAccountId": 7861012345
+    }
+    response = api.updateBankAccount("usr-c4292f1a-866f-4310-a289-b916853939de", "trm-56b976c5-26b2-42fa-87cf-14b3366673c6", data);
+
+@app.route('/list_banks', methods = ['GET'])
+def list_banks():
+    response = api.listBankAccounts("usr-c4292f1a-866f-4310-a289-b916853939de")
+
+
+@app.route('/api/v1/create_bank_card', methods = ['POST'])
+def create_bank_card():
+    try:
+        payeeToken = request.form['token']
+        url = 'https://api.sandbox.hyperwallet.com/rest/v3/users/'+payeeToken+'/bank-cards'
+
+        data = {'field': 'value'}
+        pf = urlencode(data)
+
+
+        response = StringIO.StringIO()
+
+        c = pycurl.curl()
+        c.setopt(pycurl.POST, 1)
+        c.setopt(pycurl.POSTFIELDSIZE, 0)
+        c.setopt(pycurl.URL, url)
+        c.setopt(pycurl.HTTPHEADER, 
+            ['Accept:application/json',
+            'X-Requested-By:MyClient',
+            'Content-Type:',
+            'Content-Length:'])
+        c.setopt(pycurl.VERBOSE, 1)
+        c.setopt(pycurl.USERPWD, "user:pass")
+        c.perform()
+
+    except Exception as e:
+        return jsonify({"data":{"error_msg":str(e)}}) 
+
+
+@app.route('/api/v1/create_paypal', methods=['POST'])
+def create_paypal():
+    try:
+
+        payeeToken = request.form['token']
+        userId = request.form['userId']
+
+        print(payeeToken)
+        data = {
+            "type": request.form['type'],
+            "transferMethodCountry": request.form['transferMethodCountry'],
+            "transferMethodCurrency": request.form['transferMethodCurrency'],
+            "email": request.form['email']
+        }
+    
+        
+        response = api.createPayPalAccount(payeeToken, data)
+        
+        token = response.token
+        print(response)
+        if token is not None:
+
+            data['_id'] = str(ObjectId())
+            data['payMethodToken'] = token
+            data['userId'] = userId
+            method = database['paymethods'].insert_one(data)
+
+        return jsonify({"data":token})
+        
+    except Exception as e:
+        return jsonify({"result":{"error_msg":str(e)}})
+    
+
+# Get payee details from devporte database
+@app.route('/get_payment_method', methods = {'GET'})
+def get_payment_method():
+    try:
+        userId = request.args.get('userId') 
+        print(userId)
+        payTypes = database["paymethods"].find({"userId": userId})
+
+        return jsonify({"data": list(payTypes)})
+    
+    except Exception as e:
+        return jsonify({"data":{"error_msg":str(e)}})
+
+
+
+# Make payment
+@app.route('/release_milestone', methods = ['POST'])
+def release_milestone():
+    try:
+        
+        data = {
+            "amount": request.form["amount"],
+            "clientPaymentId": request.form["clientPaymentId"],
+            "currency": request.form["currency"],
+            "destinationToken": request.form["destinationToken"],
+            "programToken":  "prg-15dc9c13-04b0-4bca-9bd4-80495b25a8ef",
+            "purpose": "Income"
+        }
+
+        return jsonify({"data":"done"})
+    except Exception as e:
+        return jsonify({"data":{"error_msg":str(e)}})
+    
 """
 @app.route('/get_rooms_by_user', methods=['GET'])
 def get_rooms_by_user():
@@ -1041,3 +1485,7 @@ def get_rooms_by_user():
 """
 if __name__ == '__main__':
     app.run(host='0.0.0.0',port=5008, debug=True)
+
+
+
+
