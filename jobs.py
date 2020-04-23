@@ -637,6 +637,7 @@ def new_contract_hire():
         developerId = request.form['developerId']
         projectId = request.form['projectId']
         developerId = request.form['developerId']
+        payeeToken = request.form['payeeToken']
         developer_firstname = request.form['developer_firstname']
         developer_lastname = request.form['developer_lastname']
         employerId = request.form['employerId']
@@ -664,8 +665,9 @@ def new_contract_hire():
              'created_on' :created_on
         }
 
-        data = {
+        contract_data = {
             'developerId' : developerId,
+            'payeeToken' : payeeToken,
             'projectId' : projectId,
             'developerId' : developerId,
             'developer_firstname' : developer_firstname,
@@ -684,14 +686,16 @@ def new_contract_hire():
 
         #print(data)
         
-        data['_id'] = str(ObjectId())
-        contractId = database["contracts"].insert_one(data).inserted_id
+        # Create contract collection
+        contract_data['_id'] = str(ObjectId())
+        contractId = database["contracts"].insert_one(contract_data).inserted_id
         
         print("my id is"+ contractId)
         if contractId is not None:
             # Update project to inprogress / initial_route = inprogress
             database["jobs"].update_one({"_id":projectId}, {"$set":{"status":"in-progress", "initial_route":"payments"}})
             
+            # Create milestones collection
             milestone_data['_id'] = str(ObjectId())
             milestone_data['contractId'] = contractId
             database["milestones"].insert_one(milestone_data)
@@ -1017,6 +1021,43 @@ def get_contract():
     except Exception as e:
         return jsonify({"data": {"error_msg": str(e)}})
 
+# Release milestone 
+@app.route('/get_single_milestone', methods=['GET'])
+def get_single_milestone():
+
+    try:
+        
+        milestoneId = request.args.get('id')
+        print(milestoneId)
+        mtone = database['milestones'].find_one({"_id": milestoneId})
+        if mtone is not None:
+            return jsonify({"data": mtone})
+        else:
+            return jsonify({"data": {"message": " milestone not  found"}})
+    except Exception as e:
+        return jsonify({"data": {"error_msg": str(e)}})
+
+# Make payment to payee (release milestone)
+@app.route('/release_milestone', methods=['POST'])
+def release_milestone():
+    try:
+        milestoneId = request.form['milestoneId']
+        data = {
+            "amount": request.form["amount"],
+            "clientPaymentId": request.form["milestoneId"],
+            "currency": request.form["currency"],
+            "destinationToken": request.form["destinationToken"],
+            "programToken":  "prg-15dc9c13-04b0-4bca-9bd4-80495b25a8ef",
+            "purpose": "GP0005"
+        }
+        response = api.createPayment(data)
+        print(response)
+        database["milestones"].update_one({'_id':milestoneId}, {'$set':{'status':'Released'}})
+        
+        return jsonify({"data": "done"})
+    except Exception as e:
+        return jsonify({"data": {"error_msg": str(e)}})
+
 @app.route('/get_chat_messages', methods=['GET'])
 def get_chat_messages():
     try:
@@ -1197,6 +1238,27 @@ def pay():
         return jsonify({"result":{"error_msg": str(e)}})
 
 # Hyper Wallet (Payout)
+
+# Get user balance
+@app.route('/get_user_balances', methods = ['GET'])
+def get_user_balances():
+    try:
+        payeeToken = request.args.get('token') 
+        response = api.listBalancesForUser(payeeToken)
+        amount = response[0].amount
+        currency = response[0].currency
+
+        res = {
+            "currency": currency,
+            "amount": amount
+        }
+        
+    
+        return jsonify({"data": res})
+    
+    except Exception as e:
+        return jsonify({"data":{"error_msg":str(e)}})
+
 
 #Create user 
 @app.route('/api/v1/create_user', methods = ['POST'])
@@ -1434,23 +1496,7 @@ def get_payment_method():
 
 
 
-# Make payment
-@app.route('/release_milestone', methods = ['POST'])
-def release_milestone():
-    try:
-        
-        data = {
-            "amount": request.form["amount"],
-            "clientPaymentId": request.form["clientPaymentId"],
-            "currency": request.form["currency"],
-            "destinationToken": request.form["destinationToken"],
-            "programToken":  "prg-15dc9c13-04b0-4bca-9bd4-80495b25a8ef",
-            "purpose": "Income"
-        }
 
-        return jsonify({"data":"done"})
-    except Exception as e:
-        return jsonify({"data":{"error_msg":str(e)}})
     
 """
 @app.route('/get_rooms_by_user', methods=['GET'])

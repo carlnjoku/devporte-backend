@@ -18,6 +18,17 @@ from firbase_storage import firebase
 import pyrebase
 from  mailgun import send_confirmation_email 
 
+from twilio.rest import Client
+
+import random
+
+
+account_sid = 'AC4f269643438bfae72f0993e99c7ae86e'
+auth_token = '5dc15340a9552547c5134fa8482cdc73'
+client = Client(account_sid, auth_token)
+
+
+
 
 config = {
     
@@ -42,6 +53,10 @@ cors = CORS(app, resources={r"/*": {"origins": "*"}})
 
 app.config['SECRET_KEY'] = 'thisismysecretkey'
 
+def randomDigits(digits):
+    lower = 10**(digits-1)
+    upper = 10**digits - 1
+    return random.randint(lower, upper)
 
 ALLOWED_EXTENSIONS_ALL_PROFILE = set(['png', 'jpg', 'jpeg', 'gif'])
 
@@ -657,6 +672,88 @@ def delete_tech():
             return jsonify({"data": {"message": "Technology not Found"}})
     except Exception as e:
         return jsonify({"data": {"error_msg": str(e)}})
+
+
+@app.route('/api/v1/create_feedback', methods = ['POST'])
+def create_feedback():
+    try:
+        
+        data = {
+            "projectId": request.form["projectId"],
+            "developerId": request.form["developerId"],
+            "employerId": request.form["employerId"],
+            "feedback": request.form["feedback"]
+        }
+    
+        
+        
+
+        ratings = {
+            "complete_job" : int(request.form["complete_job"]),
+            "timely_delivery" : int(request.form["timely_delivery"]),
+            "on_budget" : int(request.form["on_budget"]),
+            "hire_again" : int(request.form["hire_again"])
+        }
+
+        complete_job = int(request.form["complete_job"])
+        timely_delivery = int(request.form["timely_delivery"])
+        on_budget = int(request.form["on_budget"])
+        hire_again = int(request.form["hire_again"])
+
+        overall_rating = (complete_job/4) + (timely_delivery/4) + (on_budget/4) + (hire_again/4)
+        
+        data['_id'] = str(ObjectId())
+        data['ratings'] = ratings
+        data['overall_rating'] = overall_rating
+        reviewId = database['reviews'].insert_one(data).inserted_id
+
+        if reviewId is not None:
+            #reviews = database["reviews"].find({'_id':request.form["developerId"]})
+            
+            y =  database.reviews.aggregate([
+                        {
+                            "$match": {'developerId': request.form["developerId"]}
+                        },
+                        {
+                        "$group":
+                            {
+                            "_id":"$developerId",
+                            "total_average_rating": {"$avg": "$overall_rating"}
+                            
+                            }
+                        }
+                        
+                    ])
+            
+            for average in y:
+                ratings = average['total_average_rating']
+                total_average_rating = round(ratings, 1)
+
+                database["users"].update_one({"_id":request.form["developerId"]},{"$set":{"total_average_rating": total_average_rating}})
+
+    
+        return jsonify({"data":data})
+    
+    except Exception as e:
+        return jsonify({"data":{"error_msg":str(e)}}) 
+
+@app.route('/phone_verification', methods = ['POST'])
+def phone_verification():
+    req_data = request.get_json()
+    
+    body = randomDigits(5)
+
+    message = client.messages.create(
+        to = req_data['to'], 
+        from_= req_data['from'],
+        body= body 
+    )
+    print(message.sid)
+
+    return message.sid
+
+    return "hi"
+
 
 
 if __name__ == '__main__':
