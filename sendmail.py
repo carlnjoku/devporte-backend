@@ -56,5 +56,28 @@ def index():
     return jsonify({"msg":"Email confirmation sent"})
 
 
+    def feedback_email(fullname, employer_fullname, developer_email, message_body, subject):
+        fullname = "Carl Njoku"
+        firstname = "Carl",
+        userId = "5e9984786985a02bcee2b7f1"
+        message_body = "Verify your email address to complete registration  Hi Chinedu,Thanks for your interest in joining Upwork! To complete your registration, we need you to verify your email address.Verify Email Please note that not all applications to join Upwork are accepted. We will notify you of our decision by email within 24 hours.Thanks for your time,The Upwork Team"
+        subject = "Email confirmation"
+        msg = Message(
+            subject, 
+            recipients=['flavoursoft@yahoo.com', 'flavoursoft@gmail.com'], 
+            body = 'Hello '+fullname+',\nYou or someone else has requested that a new password be generated for your account. If you made this request, then please follow this link:',
+            html = render_template(
+                'signup.html', 
+                firstname=firstname, 
+                message_body=message_body,
+                userId = userId
+            ),
+            sender=["Devporte", "feedback-noreply@devporte.com"]
+        )
+        mail.send(msg)
+        return jsonify({"msg":"Email confirmation sent"})
+
+
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0',port=5012, debug=True)

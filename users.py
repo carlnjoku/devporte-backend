@@ -112,36 +112,7 @@ def get_employer():
         return jsonify({"data": {"error_msg": str(e)}})     
 
 
-@app.route('/send_email_confirmation', methods=['POST'])
-def send_email_confirmation():
-    
-    try:
-        
-        req_data = request.get_json()
-       #mailgun(req_data)
-        """
-        member = database['users'].find_one({"email": email}, {"_id": 0})
-        if member is not None:
-            return jsonify({"data": {"message": "User already exisits"}})
-        else:
-            req_data['_id'] = str(ObjectId())
-            
-            req_data['password'] = generate_password_hash(req_data['password'], method='sha256')
-            
-            x = database["users"].insert_one(req_data).inserted_id
-            new_data = {
-                'userId':x, 
-                'email': req_data['email'], 
-                'firstname': req_data['firstname'],
-                'lastname': req_data['lastname'],
-                'user_type': req_data['user_type']
-            }
-            return jsonify({"result": new_data})
-        """
-        return jsonify({"data":"sent"})
 
-    except Exception as e:
-        return jsonify({"data": {"error_msg": str(e)}})
 
 @app.route('/do_email_confirmation', methods=['GET'])
 def do_email_confirmation():
@@ -684,9 +655,6 @@ def create_feedback():
             "employerId": request.form["employerId"],
             "feedback": request.form["feedback"]
         }
-    
-        
-        
 
         ratings = {
             "complete_job" : int(request.form["complete_job"]),
@@ -715,22 +683,37 @@ def create_feedback():
                             "$match": {'developerId': request.form["developerId"]}
                         },
                         {
-                        "$group":
-                            {
-                            "_id":"$developerId",
-                            "total_average_rating": {"$avg": "$overall_rating"}
-                            
+                            "$group":
+                                {
+                                "_id":"$developerId",
+                                "count": {"$sum": 1},
+                                "total_average_rating": {"$avg": "$overall_rating"}
+                                
+                                }
                             }
-                        }
                         
                     ])
             
             for average in y:
                 ratings = average['total_average_rating']
                 total_average_rating = round(ratings, 1)
+                count = average['count']
+                print(count)
+                reviews = {
+                    "total_reviews":count,
+                    "total_average_rating": total_average_rating
+                }
+            
 
-                database["users"].update_one({"_id":request.form["developerId"]},{"$set":{"total_average_rating": total_average_rating}})
+                database["users"].update_one({"_id":request.form["developerId"]},{"$set":{"reviews": reviews}})
 
+                """
+                developer_email = request.form['developer_email']
+                developer_firstname = request.form['developer_firstname']
+                developer_lastname = request.form['developer_lastname']
+                employer_firstname = request.form['employer_firstname']
+                employer_lastname = request.form['employer_lastname']
+                """
     
         return jsonify({"data":data})
     

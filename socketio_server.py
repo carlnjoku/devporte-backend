@@ -1,19 +1,18 @@
 from flask import Flask, request, jsonify
-from flask_socketio import SocketIO, emit,send, join_room
+from flask_socketio import SocketIO, emit,send, join_room, leave_room
 from flask_cors import CORS
-from db import add_room, add_room_members, save_message, save_project_feeds
+from db import add_room, add_room_members, save_message, save_project_feeds, update_last_in_room
 from db import database 
 from jobs import upload_files
 from bson.objectid import ObjectId
 from bson import json_util
 import json
 import datetime
+import time
 import requests
 
 apikey = "key-abc123456pqr456xYz"
 url = "https://api.mailgun.net/vN/domainAbcdefg.mailgun.org"
-
-
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'secret!'
@@ -38,34 +37,59 @@ def connect(data):
     emit('connected', response, broadcast=True)
     print(response)
 
-@socketio.on('disconnect', namespace='/private')
-def disconnect(data):
-    x = database["users"].update({'_id':data}, {'$set':{'online':False}})
-    response = 'false'
-    emit('user_disconnected_annoucement', response)
-    print(data)
-    disconnect(request.sid, namespace='/private')
-    print(request.sid+ 'yep')
+
+# @socketio.on('disconnect', namespace='/private')
+# def disconnect(data):
+#     x = database["users"].update({'_id':data}, {'$set':{'online':False}})
+#     response = 'false'
+#     emit('user_disconnected_annoucement', response)
+#     print(data)
+#     disconnect(request.sid, namespace='/private')
+#     print(request.sid+ 'yep')
 
 
 # user enters the room 
 @socketio.on('message1', namespace='/private')
 def message(data):
     join_room(data['room'])
-    emit('join_room_annoucement', data, broadcast=True)
+    emit('join_private_room_annoucement', data, room=data['room'])
     print('Carlo' + data['room'])
 
-@socketio.on('disconnect1', namespace='/private')
-def disconnect():
+@socketio.on('leave', namespace='/private')
+def leave(data):
+    # print(data['room'])
+    leave_room(data['room'])
+    update_last_in_room(data['room'])
+    emit('left_room', data, room=data['room'])
+    print('Carlo left romm' + data['room'])
     
-    emit('disconnect_anouncement', 'disconneted', broadcast=True)
-    print('disconnected')
+    
+
+# @socketio.on('disconnect1', namespace='/private')
+# def disconnect():
+    
+#     emit('disconnect_anouncement', 'disconneted', broadcast=True)
+#     print('disconnected')
 
 # proposal notification
 @socketio.on('proposal_notification', namespace='/private')
 def manage_notification(data):
     join_room(data['room'])
     emit('proposal_notification_annoucement', data, room=data['room'])
+    print(data)
+
+# Hired notification
+@socketio.on('message', namespace='/hire')
+def manage_hired(data):
+    join_room(data['room'])
+    emit('join_room_annoucement', data, room=data['room'])
+    print(data)
+
+# Send hired notification
+@socketio.on('hired', namespace='/hire')
+def hired(data):
+    join_room(data['room'])
+    emit('hired_freelancer', data, room=data['room'])
     print(data)
 
 
@@ -85,19 +109,21 @@ def handle_send_message(payload):
     sender_lname = payload['sender_lname']
     sender_email = payload['sender_email']
     sender_avatar = payload['sender_avatar']
+    sender_type = payload['sender_type']
     
     print('my room' + room)
     #Save message
     save_message(room, message_body, senderId, created_on, recepientId, recepient_avatar, recepient_fname, 
-    recepient_lname, recepient_email, sender_fname, sender_lname, sender_email, sender_avatar )
+    recepient_lname, recepient_email, sender_fname, sender_lname, sender_email, sender_avatar, sender_type )
     print(payload)
     
     emit('new_message', {'message':message_body, 'sender_avatar':sender_avatar, 'sender_fname':sender_fname, 'sender_lname':sender_fname, 'created_on':created_on}, room=room)
 
 @socketio.on('typing',  namespace='/private' )
 def handle_typing(data):
-    emit('start_typing', data, broadcast=True)
-    #print(data['message'])
+    join_room(data['room'])
+    emit('start_typing', data, room=data['room'])
+    print(data)
 
 @socketio.on('new_job_post')
 def handle_new_job_post(payload):
@@ -152,4 +178,4 @@ def handle_new_job_post(payload):
 
 
 if __name__ == '__main__':
-    socketio.run(app, host="0.0.0.0", debug=True)
+    socketio.run(app, host="0.0.0.0", port="5001", debug=True)

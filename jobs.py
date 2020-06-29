@@ -420,7 +420,6 @@ def new_proposal():
     
     """
     member_data = []
-
     member_data.append({
         'developerId': developerId,
         'projectId' : projectId,
@@ -432,7 +431,6 @@ def new_proposal():
         'avatar':avatar,
         'isRoomAdmin': True
     })
-
     member_data.append({
         'developerId': developerId,
         'projectId' : projectId,
@@ -487,12 +485,9 @@ def new_proposal():
       
         get_filename = secure_filename(file.filename)
         filename, file_extension = os.path.splitext(get_filename)
-
         # Generate new file name
         filename = developerId+'-'+firstname+file_extension
-
         filename = filename.replace(' ', '-').lower()
-
         
     else:
         if not 'image' in request.files :res["error"] = "No Image"
@@ -501,18 +496,13 @@ def new_proposal():
         
         
         return jsonify({"result": 'what'})
-
     filename = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-
     
     
     print(filename)
-
     if not os.path.exists(UPLOAD_FOLDER):
         os.makedirs(UPLOAD_FOLDER)
-
     
-
     temp_file = os.path.join(app.config['UPLOAD_FOLDER'], "temp.jpg")
     
     file.save(temp_file)
@@ -525,12 +515,9 @@ def new_proposal():
     #res["msg"] = "Valid_Image"
     shutil.copy(temp_file,filename)
     file = request.files['image']
-
     
     res["media"] = filename
-
     print(request.files)
-
     
    
     data = {
@@ -546,13 +533,11 @@ def new_proposal():
         'cover_letter'  : cover_letter,
         'created_on'  : created_on,
     }
-
     member = database['proposal'].find_one({"developerId": developerId, "projectId":projectId }, {"_id": 0})
     if member is not None:
         return jsonify({"data": {"message": "Already sent a proposal for this project"}})
     else:
         data['_id'] = str(ObjectId())
-
         proposal_id = database["proposal"].insert_one(data).inserted_id
         
         #print(list(proposal))
@@ -562,12 +547,8 @@ def new_proposal():
     
     
     
-
-
     os.remove(temp_file)
-
     return jsonify({"result": 'proposal successfully sent'})
-
 """
 @app.route('/get_proposal_projectId', methods=['GET'])
 def get_proposal_projectId():
@@ -707,7 +688,6 @@ def new_contract_hire():
 
 
 """
-
 @app.route('/new_contract', methods=['POST'])
 def new_contract():
     
@@ -718,7 +698,6 @@ def new_contract():
         req_data['_id'] = str(ObjectId())
         x = database["contracts"].insert_one(req_data)
         return jsonify({"msg": "Contract successfully created"})
-
     except Exception as e:
         return jsonify({"data": {"error_msg": str(e)}})
 """
@@ -1308,7 +1287,6 @@ def create_user1():
         req_data['_id'] = str(ObjectId())
         database["payee"].insert_one(req_data)
         return jsonify({"data": req_data})
-
     except Exception as e:
         return jsonify({"data":{"error_msg":str(e)}})
 """
@@ -1531,7 +1509,5 @@ def get_rooms_by_user():
 """
 if __name__ == '__main__':
     app.run(host='0.0.0.0',port=5008, debug=True)
-
-
 
 

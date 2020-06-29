@@ -1,6 +1,7 @@
 from pymongo import MongoClient
 from bson.objectid import ObjectId
 from flask import Flask, request, jsonify
+import time
 
 
 db_name = 'devporte'
@@ -23,7 +24,7 @@ project_feeds_colection = database['project_feeds']
 
 def add_room(room, employerId, developerId, created_on, room_members_data, firstname, lastname, avatar, employer_firstname, employer_lastname, project_title):
     room_id = rooms_collection.insert_one({'room':room, 'employerId': employerId, 'developerId': developerId, 'created_on':created_on, 'firstname':firstname, 'lastname':lastname, 'avatar':avatar, 'employer_firstname':employer_firstname, 'employer_lastname':employer_lastname, 'project_title':project_title }).inserted_id
-    add_room_members(room_id,room, room_members_data)
+    add_room_members(room_id, room, room_members_data)
     #save_message(room_id, room, message_body, senderId, created_on, recepientId, recepient_avatar, recepient_fname, recepient_lname, recepient_email)
     return room_id
 
@@ -36,12 +37,18 @@ def add_room_members(room_id,room, room_members_data):
     #Update incoming member data by adding room_id and room to member_data
     room_members_data[0].update(room = room, room_id = room_id)
     room_members_data[1].update(room = room, room_id = room_id)
+
+    for room_member in room_members_data:
+        
+    
+        room_member['_id'] = str(ObjectId())
+        room_members_collection.insert(room_member)
    
     room_members_collection.insert_many(room_members_data)
 
-def save_message(room, message_body, senderId, created_on, recepientId, recepient_avatar, recepient_fname, recepient_lname, recepient_email, sender_fname, sender_lname, sender_email, sender_avatar):
-    message = messages_collection.insert_one({'room':room, 'message_body': message_body, 'senderId':senderId, 'created_on':created_on, 'recepientId': recepientId, 'recepient_avatar':recepient_avatar, 'recepient_fname':recepient_fname, 'recepient_lname':recepient_lname, 'recepient_email':recepient_email,
-    'sender_fname':sender_fname, 'sender_lname':sender_lname, 'sender_email':sender_email, 'sender_avatar':sender_avatar})
+def save_message(room, message_body, senderId, created_on, recepientId, recepient_avatar, recepient_fname, recepient_lname, recepient_email, sender_fname, sender_lname, sender_email, sender_avatar, sender_type):
+    message = messages_collection.insert_one({'_id': str(ObjectId()), 'room':room, 'message_body': message_body, 'senderId':senderId, 'created_on':created_on, 'recepientId': recepientId, 'recepient_avatar':recepient_avatar, 'recepient_fname':recepient_fname, 'recepient_lname':recepient_lname, 'recepient_email':recepient_email,
+    'sender_fname':sender_fname, 'sender_lname':sender_lname, 'sender_email':sender_email, 'sender_avatar':sender_avatar, 'sender_type':sender_type})
     
 def get_messages(room_id):
     return list(messages_collection.find({'room_id':room_id}))
@@ -74,3 +81,6 @@ def update_project(projectId, bid):
     project_collection.update_one({'_id':projectId}, {'$addToSet':{'bid':int(bid)}})
 
 
+def update_last_in_room(room):
+    rooms_collection.update_one({'room':room}, {'$set': {'last_in_room':int(time.time())}})
+    
