@@ -13,6 +13,8 @@ import json
 app = Flask(__name__)
 cors = CORS(app, resources={r"/*": {"origins": "*"}})
 
+
+
 @app.route('/add_tech', methods=['POST'])
 def new_tech():
     
@@ -85,6 +87,65 @@ def delete_tech():
             return jsonify({"data": {"msg": "Technology was successfully removed"}})
         else:
             return jsonify({"data": {"message": "Technology not Found"}})
+    except Exception as e:
+        return jsonify({"data": {"error_msg": str(e)}})
+
+
+@app.route('/add_expertise_category', methods=['POST'])
+def add_expertise_category():
+    
+    try:
+        
+        req_data = request.get_json()
+        
+        req_data['_id'] = str(ObjectId())
+        x = database["expertise_categories"].insert_one(req_data)
+        return jsonify({"msg": "Expertise successfully created"})
+
+    except Exception as e:
+        return jsonify({"data": {"error_msg": str(e)}})
+
+    
+@app.route('/add_expertise_specialty', methods=['POST'])
+def add_expertise_specialty():
+    
+    try:
+        
+        req_data = request.get_json()
+        
+        req_data['_id'] = str(ObjectId())
+        x = database["specialty"].insert_one(req_data)
+        return jsonify({"msg": "specialty successfully created"})
+
+    except Exception as e:
+        return jsonify({"data": {"error_msg": str(e)}})
+
+
+
+@app.route('/add_longrich_data', methods=['POST'])
+def add_longrich_data():
+    
+    try:
+        
+        req_data = request.get_json()
+        
+        req_data['_id'] = str(ObjectId())
+        x = database["longrich"].insert_one(req_data)
+        return jsonify({"msg": "user successfully created"})
+
+    except Exception as e:
+        return jsonify({"data": {"error_msg": str(e)}})
+
+
+@app.route('/get_stockists', methods=['GET'])
+def get_stockists():
+    try:
+        stockist = database['longrich'].find({"stockistId":"NG2100"}, {'_id': 0, 'phone1':0, 'phone':0})
+        #print(stockist.count())
+        print(list(stockist))
+        print('Hey')
+        #return jsonify({"data": candidates.count()})
+        return jsonify({"data": list(stockist)})
     except Exception as e:
         return jsonify({"data": {"error_msg": str(e)}})
 

@@ -1,7 +1,7 @@
 from flask import Flask, request, jsonify
 from flask_socketio import SocketIO, emit,send, join_room, leave_room
 from flask_cors import CORS
-from db import add_room, add_room_members, save_message, save_project_feeds, update_last_in_room
+from db import add_room, add_room_members, save_message, save_project_feeds, update_freelancer_last_in_room, update_employer_last_in_room
 from db import database 
 from jobs import upload_files
 from bson.objectid import ObjectId
@@ -55,13 +55,21 @@ def message(data):
     emit('join_private_room_annoucement', data, room=data['room'])
     print('Carlo' + data['room'])
 
-@socketio.on('leave', namespace='/private')
-def leave(data):
-    # print(data['room'])
+@socketio.on('freelancer_leaves_room', namespace='/private')
+def freelancer_leaves_room(data):
+    print(data['message'])
     leave_room(data['room'])
-    update_last_in_room(data['room'])
+    update_freelancer_last_in_room(data['room'])
     emit('left_room', data, room=data['room'])
-    print('Carlo left romm' + data['room'])
+    print('Carlo left room ' + data['room'])
+
+@socketio.on('employer_leaves_room', namespace='/private')
+def employer_leaves_room(data):
+    print(data['message'])
+    leave_room(data['room'])
+    update_employer_last_in_room(data['room'])
+    emit('left_room', data, room=data['room'])
+    print('Carlo left room ' + data['room'])
     
     
 
@@ -92,13 +100,12 @@ def hired(data):
     emit('hired_freelancer', data, room=data['room'])
     print(data)
 
-
+# Send chat message
 @socketio.on('send_message', namespace='/private')
 def handle_send_message(payload):
     message_body = payload['message_body']
     room = payload['room']
     senderId = payload['senderId']
-    created_on = payload['created_on']
     recepientId = payload['recepientId']
     recepient_avatar = payload['recepient_avatar']
     recepient_fname = payload['recepient_fname']
@@ -113,11 +120,11 @@ def handle_send_message(payload):
     
     print('my room' + room)
     #Save message
-    save_message(room, message_body, senderId, created_on, recepientId, recepient_avatar, recepient_fname, 
+    save_message(room, message_body, senderId, recepientId, recepient_avatar, recepient_fname, 
     recepient_lname, recepient_email, sender_fname, sender_lname, sender_email, sender_avatar, sender_type )
     print(payload)
     
-    emit('new_message', {'message':message_body, 'sender_avatar':sender_avatar, 'sender_fname':sender_fname, 'sender_lname':sender_fname, 'created_on':created_on}, room=room)
+    emit('new_message', {'message':message_body, 'sender_avatar':sender_avatar, 'sender_fname':sender_fname, 'sender_lname':sender_fname}, room=room)
 
 @socketio.on('typing',  namespace='/private' )
 def handle_typing(data):

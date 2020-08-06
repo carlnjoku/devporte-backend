@@ -5,7 +5,7 @@ import time
 
 
 db_name = 'devporte'
-db_host_mongo = '0.0.0.0'
+db_host_mongo = '45.79.27.141'
 db_port_mongo = '27017'
 mongo_uri = "mongodb://{db_host}:{db_port_mongo}/{db_name}".format(
     #username=username, password=password, db_host=db_host_mongo,
@@ -20,6 +20,7 @@ messages_collection = database['chatmessages']
 users_collection = database['users']
 project_collection = database['jobs']
 project_feeds_colection = database['project_feeds']
+
 
 
 def add_room(room, employerId, developerId, created_on, room_members_data, firstname, lastname, avatar, employer_firstname, employer_lastname, project_title):
@@ -46,8 +47,8 @@ def add_room_members(room_id,room, room_members_data):
    
     room_members_collection.insert_many(room_members_data)
 
-def save_message(room, message_body, senderId, created_on, recepientId, recepient_avatar, recepient_fname, recepient_lname, recepient_email, sender_fname, sender_lname, sender_email, sender_avatar, sender_type):
-    message = messages_collection.insert_one({'_id': str(ObjectId()), 'room':room, 'message_body': message_body, 'senderId':senderId, 'created_on':created_on, 'recepientId': recepientId, 'recepient_avatar':recepient_avatar, 'recepient_fname':recepient_fname, 'recepient_lname':recepient_lname, 'recepient_email':recepient_email,
+def save_message(room, message_body, senderId, recepientId, recepient_avatar, recepient_fname, recepient_lname, recepient_email, sender_fname, sender_lname, sender_email, sender_avatar, sender_type):
+    message = messages_collection.insert_one({'_id': str(ObjectId()), 'room':room, 'message_body': message_body, 'senderId':senderId, 'created_date':int(time.time()), 'recepientId': recepientId, 'recepient_avatar':recepient_avatar, 'recepient_fname':recepient_fname, 'recepient_lname':recepient_lname, 'recepient_email':recepient_email,
     'sender_fname':sender_fname, 'sender_lname':sender_lname, 'sender_email':sender_email, 'sender_avatar':sender_avatar, 'sender_type':sender_type})
     
 def get_messages(room_id):
@@ -81,6 +82,9 @@ def update_project(projectId, bid):
     project_collection.update_one({'_id':projectId}, {'$addToSet':{'bid':int(bid)}})
 
 
-def update_last_in_room(room):
-    rooms_collection.update_one({'room':room}, {'$set': {'last_in_room':int(time.time())}})
+def update_freelancer_last_in_room(room):
+    rooms_collection.update_one({'room':room}, {'$set': {'freelancer_last_in_room':int(time.time())}})
+
+def update_employer_last_in_room(room):
+    rooms_collection.update_one({'room':room}, {'$set': {'employer_last_in_room':int(time.time())}})
     
