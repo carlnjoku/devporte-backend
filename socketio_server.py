@@ -139,38 +139,32 @@ def handle_new_job_post(payload):
     #employerId = payload['employerId']
     projectId = payload['projectId']
     project_type = payload['project_type']
-    expertise = payload['expertise']
+    required_skills = payload['required_skills']
     experience_level = payload['experience_level']
-    created_on = payload['created_on'],
+    created_on = payload['created_on']
     
-    print(project_type)
-
-    #print('files' +file)
     
-    #Check if file is submitted
-    #if len(file) > 0:
-        #uploaded_files = upload_files(file)
+    print(required_skills)
 
-    #print(uploaded_files)
-    #Save project post 
-    #projectId = save_project(employerId, employer_name, firstname, lastname, email, title, job_description, project_type, expertise, experience_level, payment_type, project_time, file, status, initial_route, created_on)
-
-    #print('ProjectId: '+ projectId)
-    
-    #Match jobs with freelancers
-
+   
     users = database.users.aggregate([
             
             {
-                "$match": {'primary_skills':{'title': '12 Angry Men', 'year': 1957, 'title':'Fight Club', 'year':1999}, 'experience_Level' : 'intermediate' } 
+                "$match": { 'experience' : experience_level } 
             },
             {
-                "$project": {"_id":1}
+                "$project": {
+                    "_id":"$_id",
+                    "firstname":"$firtsname",
+                    "lastname":"$lastname",
+                    "email":"$email"
+                }
             }
             
         ])
 
     users = list(users)
+    print(users)
     
     #print(list(users))
     for user in users:
