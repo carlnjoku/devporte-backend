@@ -47,8 +47,8 @@ def add_room_members(room_id,room, room_members_data):
    
     room_members_collection.insert_many(room_members_data)
 
-def save_message(room, message_body, senderId, recepientId, recepient_avatar, recepient_fname, recepient_lname, recepient_email, sender_fname, sender_lname, sender_email, sender_avatar, sender_type):
-    message = messages_collection.insert_one({'_id': str(ObjectId()), 'room':room, 'message_body': message_body, 'senderId':senderId, 'created_date':int(time.time()), 'recepientId': recepientId, 'recepient_avatar':recepient_avatar, 'recepient_fname':recepient_fname, 'recepient_lname':recepient_lname, 'recepient_email':recepient_email,
+def save_message(room, message_body, message_type, senderId, recepientId, recepient_avatar, recepient_fname, recepient_lname, recepient_email, sender_fname, sender_lname, sender_email, sender_avatar, sender_type):
+    message = messages_collection.insert_one({'_id': str(ObjectId()), 'room':room, 'message_body': message_body, 'message_type':message_type, 'senderId':senderId, 'created_date':int(time.time()), 'recepientId': recepientId, 'recepient_avatar':recepient_avatar, 'recepient_fname':recepient_fname, 'recepient_lname':recepient_lname, 'recepient_email':recepient_email,
     'sender_fname':sender_fname, 'sender_lname':sender_lname, 'sender_email':sender_email, 'sender_avatar':sender_avatar, 'sender_type':sender_type})
     
 def get_messages(room_id):

@@ -95,15 +95,43 @@ def manage_hired(data):
 
 # Send hired notification
 @socketio.on('hired', namespace='/hire')
-def hired(data):
-    join_room(data['room'])
-    emit('hired_freelancer', data, room=data['room'])
-    print(data)
+def hired(payload):
+    message_body = payload['message_body']
+    message_type = payload['message_type']
+    room = payload['room']
+    senderId = payload['senderId']
+    recepientId = payload['recepientId']
+    recepient_avatar = payload['recepient_avatar']
+    recepient_fname = payload['recepient_fname']
+    recepient_lname = payload['recepient_lname']
+    recepient_email = payload['recepient_email']
+    senderId =  payload['senderId']
+    sender_fname =  payload['sender_fname']
+    sender_lname = payload['sender_lname']
+    sender_email = payload['sender_email']
+    sender_avatar = payload['sender_avatar']
+    sender_type = payload['sender_type']
+
+    join_room(payload['room'])
+    emit('hired_freelancer', payload, room=payload['room'])
+    print(payload)
+
+    save_message(room, message_body, message_type, senderId, recepientId, recepient_avatar, recepient_fname, 
+    recepient_lname, recepient_email, sender_fname, sender_lname, sender_email, sender_avatar, sender_type )
+    print(payload)
+
+    {
+        'room': '5eb3be9c54c83f1c4758cf99', 
+        'companyname': 'Flavoursoft Consulting', 
+        'message': 'Flavoursoft Consulting has made you an offer for:  A project with react js and react native View offer', 
+        'title': 'A project with react js and react native', 
+        'milestones': 10}
 
 # Send chat message
 @socketio.on('send_message', namespace='/private')
 def handle_send_message(payload):
     message_body = payload['message_body']
+    message_type = payload['message_type']
     room = payload['room']
     senderId = payload['senderId']
     recepientId = payload['recepientId']
@@ -120,11 +148,11 @@ def handle_send_message(payload):
     
     print('my room' + room)
     #Save message
-    save_message(room, message_body, senderId, recepientId, recepient_avatar, recepient_fname, 
+    save_message(room, message_body, message_type, senderId, recepientId, recepient_avatar, recepient_fname, 
     recepient_lname, recepient_email, sender_fname, sender_lname, sender_email, sender_avatar, sender_type )
     print(payload)
     
-    emit('new_message', {'message':message_body, 'sender_avatar':sender_avatar, 'sender_fname':sender_fname, 'sender_lname':sender_fname}, room=room)
+    emit('new_message', {'message':message_body, 'message_type':message_type, 'sender_avatar':sender_avatar, 'sender_fname':sender_fname, 'sender_lname':sender_fname}, room=room)
 
 @socketio.on('typing',  namespace='/private' )
 def handle_typing(data):
