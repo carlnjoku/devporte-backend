@@ -1,7 +1,7 @@
 from flask import Flask, request, jsonify
 from flask_socketio import SocketIO, emit,send, join_room, leave_room
 from flask_cors import CORS
-from db import add_room, add_room_members, save_message, save_project_feeds, update_freelancer_last_in_room, update_employer_last_in_room
+from db import add_room, add_room_members, save_message, save_message_hire_notification, save_project_feeds, update_freelancer_last_in_room, update_employer_last_in_room
 from db import database 
 from jobs import upload_files
 from bson.objectid import ObjectId
@@ -96,8 +96,9 @@ def manage_hired(data):
 # Send hired notification
 @socketio.on('hired', namespace='/hire')
 def hired(payload):
-    message_body = payload['message_body']
+    message_body = payload['message']
     message_type = payload['message_type']
+    project_title = payload['title']
     room = payload['room']
     senderId = payload['senderId']
     recepientId = payload['recepientId']
@@ -111,21 +112,18 @@ def hired(payload):
     sender_email = payload['sender_email']
     sender_avatar = payload['sender_avatar']
     sender_type = payload['sender_type']
+    total_milestones = payload['total_milestones']
+    offerId = payload['offerId']
 
     join_room(payload['room'])
     emit('hired_freelancer', payload, room=payload['room'])
     print(payload)
 
-    save_message(room, message_body, message_type, senderId, recepientId, recepient_avatar, recepient_fname, 
+    save_message_hire_notification(room, message_body, message_type, project_title, total_milestones,offerId, senderId, recepientId, recepient_avatar, recepient_fname, 
     recepient_lname, recepient_email, sender_fname, sender_lname, sender_email, sender_avatar, sender_type )
     print(payload)
 
-    {
-        'room': '5eb3be9c54c83f1c4758cf99', 
-        'companyname': 'Flavoursoft Consulting', 
-        'message': 'Flavoursoft Consulting has made you an offer for:  A project with react js and react native View offer', 
-        'title': 'A project with react js and react native', 
-        'milestones': 10}
+    
 
 # Send chat message
 @socketio.on('send_message', namespace='/private')
@@ -152,7 +150,7 @@ def handle_send_message(payload):
     recepient_lname, recepient_email, sender_fname, sender_lname, sender_email, sender_avatar, sender_type )
     print(payload)
     
-    emit('new_message', {'message':message_body, 'message_type':message_type, 'sender_avatar':sender_avatar, 'sender_fname':sender_fname, 'sender_lname':sender_fname}, room=room)
+    emit('new_message', {'message':message_body, 'message_type':message_type,  'sender_avatar':sender_avatar, 'sender_fname':sender_fname, 'sender_lname':sender_fname}, room=room)
 
 @socketio.on('typing',  namespace='/private' )
 def handle_typing(data):
