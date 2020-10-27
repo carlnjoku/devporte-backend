@@ -3,7 +3,7 @@ blinker==1.4
 braintree==4.0.0
 cffi==1.14.0
 Click==7.0
-cryptography==2.8
+cryptography==3.2
 dnspython==1.16.0
 ecdsa==0.15
 eventlet==0.25.1
