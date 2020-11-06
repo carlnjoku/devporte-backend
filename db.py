@@ -4,15 +4,29 @@ from flask import Flask, request, jsonify
 import time
 
 
+# db_name = 'devport_engine'
+# db_host_mongo = '45.79.27.141'
+# db_port_mongo = '27017'
+# username='carlnjoku' 
+# password='fuckyouasshole'
+# mongo_uri = "mongodb://{username}:{password}@{db_host}:{db_port_mongo}/{db_name}".format(
+# username=username, password=password,
+# db_host=db_host_mongo,
+# db_port_mongo=db_port_mongo, db_name=db_name)
+# client = MongoClient(mongo_uri)
+# database = client[db_name]
+
 db_name = 'devporte'
-db_host_mongo = '45.79.27.141'
+db_host_mongo = 'localhost'
 db_port_mongo = '27017'
+#username='carlnjoku' 
+#password='fuckyouasshole'
 mongo_uri = "mongodb://{db_host}:{db_port_mongo}/{db_name}".format(
-    #username=username, password=password, db_host=db_host_mongo,
-    db_host=db_host_mongo,
-    db_port_mongo=db_port_mongo, db_name=db_name)
+db_host=db_host_mongo,
+db_port_mongo=db_port_mongo, db_name=db_name)
 client = MongoClient(mongo_uri)
 database = client[db_name]
+
 
 rooms_collection = database['rooms']
 room_members_collection = database['room_members']
@@ -54,6 +68,14 @@ def save_message(room, message_body, message_type, senderId, recepientId, recepi
 def save_message_hire_notification(room, message_body, message_type, project_title, total_milestones, offerId, senderId, recepientId, recepient_avatar, recepient_fname, recepient_lname, recepient_email, sender_fname, sender_lname, sender_email, sender_avatar, sender_type):
     message = messages_collection.insert_one({'_id': str(ObjectId()), 'room':room, 'message_body': message_body, 'message_type':message_type, 'project_title':project_title, 'total_milestones':total_milestones, 'offerId':offerId, 'senderId':senderId, 'created_date':int(time.time()), 'recepientId': recepientId, 'recepient_avatar':recepient_avatar, 'recepient_fname':recepient_fname, 'recepient_lname':recepient_lname, 'recepient_email':recepient_email,
     'sender_fname':sender_fname, 'sender_lname':sender_lname, 'sender_email':sender_email, 'sender_avatar':sender_avatar, 'sender_type':sender_type})
+    
+def save_message_accept_offer_notification(room, message_body, message_type, senderId, recepientId, recepient_avatar, recepient_fname, recepient_lname, recepient_email, sender_fname, sender_lname, sender_email):
+    message = messages_collection.insert_one({'_id': str(ObjectId()), 'room':room, 'message_body': message_body, 'message_type':message_type, 'senderId':senderId, 'created_date':int(time.time()), 'recepientId': recepientId, 'recepient_avatar':recepient_avatar, 'recepient_fname':recepient_fname, 'recepient_lname':recepient_lname, 'recepient_email':recepient_email,
+    'sender_fname':sender_fname, 'sender_lname':sender_lname, 'sender_email':sender_email})
+    
+
+    # save_message_hire_notification(room, message_body, message_type , senderId, recepient_fname, 
+    # recepient_lname, recepient_email, sender_fname, sender_lname, sender_email, sender_type )
     
 
 

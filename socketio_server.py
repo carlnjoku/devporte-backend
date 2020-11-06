@@ -1,7 +1,7 @@
 from flask import Flask, request, jsonify
 from flask_socketio import SocketIO, emit,send, join_room, leave_room
 from flask_cors import CORS
-from db import add_room, add_room_members, save_message, save_message_hire_notification, save_project_feeds, update_freelancer_last_in_room, update_employer_last_in_room
+from db import add_room, add_room_members, save_message, save_message_hire_notification, save_message_accept_offer_notification, save_project_feeds, update_freelancer_last_in_room, update_employer_last_in_room
 from db import database 
 from jobs import upload_files
 from bson.objectid import ObjectId
@@ -79,22 +79,19 @@ def employer_leaves_room(data):
 #     emit('disconnect_anouncement', 'disconneted', broadcast=True)
 #     print('disconnected')
 
-# proposal notification
-@socketio.on('proposal_notification', namespace='/private')
-def manage_notification(data):
-    join_room(data['room'])
-    emit('proposal_notification_annoucement', data, room=data['room'])
-    print(data)
+
 
 # Hired notification
-@socketio.on('message', namespace='/hire')
+@socketio.on('message', namespace='/private')
 def manage_hired(data):
     join_room(data['room'])
     emit('join_room_annoucement', data, room=data['room'])
     print(data)
 
+
+
 # Send hired notification
-@socketio.on('hired', namespace='/hire')
+@socketio.on('offer', namespace='/private')
 def hired(payload):
     message_body = payload['message']
     message_type = payload['message_type']
@@ -115,15 +112,51 @@ def hired(payload):
     total_milestones = payload['total_milestones']
     offerId = payload['offerId']
 
-    join_room(payload['room'])
-    emit('hired_freelancer', payload, room=payload['room'])
-    print(payload)
+    
+    emit('offered_freelancer', payload, room=room)
+    #emit('hired_freelancer', payload, broadcast=True)
+    print('calitos_room'+ payload['room'])
 
     save_message_hire_notification(room, message_body, message_type, project_title, total_milestones,offerId, senderId, recepientId, recepient_avatar, recepient_fname, 
     recepient_lname, recepient_email, sender_fname, sender_lname, sender_email, sender_avatar, sender_type )
     print(payload)
 
+# Send hired notification
+@socketio.on('accept_offer', namespace='/private')
+def accept_offer(payload):
+    message_body = payload['message_body']
+    message_type = payload['message_type']
+    # project_title = payload['title']
+    room = payload['room']
+    senderId = payload['senderId']
+    recepientId = payload['recepientId']
+    #recepient_avatar = payload['recepient_avatar']
+    recepient_fname = payload['recepient_fname']
+    recepient_lname = payload['recepient_lname']
+    recepient_email = payload['recepient_email']
+    senderId =  payload['senderId']
+    sender_fname =  payload['sender_fname']
+    sender_lname = payload['sender_lname']
+    sender_email = payload['sender_email']
+    # sender_avatar = payload['sender_avatar']
+    sender_type = payload['sender_type']
+    # total_milestones = payload['total_milestones']
+    # offerId = payload['offerId']
+
     
+    emit('accepted_offer', payload, room=room)
+    #emit('hired_freelancer', payload, broadcast=True)
+    print('calitos_room'+ payload['room'])
+
+    save_message_accept_offer_notification(room, message_body, message_type , senderId, recepientId, recepient_fname, 
+    recepient_lname, recepient_email, sender_fname, sender_lname, sender_email, sender_type )
+    #print(payload)
+
+@socketio.on('connect_to_make_offer', namespace='/private')
+def connect_to_make_offer(data):  
+    join_room(data['room'])
+    emit('connected_to_offer', data, room=data['room'])
+    print(data) 
 
 # Send chat message
 @socketio.on('send_message', namespace='/private')
@@ -158,11 +191,15 @@ def handle_typing(data):
     emit('start_typing', data, room=data['room'])
     print(data)
 
-@socketio.on('new_job_post')
-def handle_new_job_post(payload):
-    
-    #room = '5e47e537c1f8d023941a76c5'
-    #employerId = payload['employerId']
+@socketio.on('connect_new_project_notification', namespace='/private')
+def connect_new_project_notification(data):  
+    join_room(data['room'])
+    emit('connected_to_new_project_notification', data, room=data['room'])
+    print(data) 
+
+@socketio.on('post_new_project', namespace='/private')
+def post_new_project(payload):
+    print(payload)
     projectId = payload['projectId']
     project_type = payload['project_type']
     required_skills = payload['required_skills']
@@ -171,7 +208,7 @@ def handle_new_job_post(payload):
     
     
     print(required_skills)
-
+    print(project_type)
    
     users = database.users.aggregate([
             
@@ -181,7 +218,7 @@ def handle_new_job_post(payload):
             {
                 "$project": {
                     "_id":"$_id",
-                    "firstname":"$firtsname",
+                    "firstname":"$firstname",
                     "lastname":"$lastname",
                     "email":"$email"
                 }
@@ -200,9 +237,37 @@ def handle_new_job_post(payload):
 
         # Insert into project feeds
         save_project_feeds(feed)
-        emit('new_job_post_announcement', msg, room=user['_id'])
+        #emit('new_project_anouncement', msg, room=user['_id'])
+        emit('new_project_anouncement', msg, broadcast=True)
+
+# Connection for proposal
+
+# proposal notification
+@socketio.on('connect_to_receive_proposals', namespace='/private')
+def manage_notification(data):
+    join_room(data['room'])
+    
 
 
+# Send chat message
+@socketio.on('proposal_notification', namespace='/private')
+def proposal_notification(payload):
+    developer_avatar = payload['developer_avatar']
+    developer_fname = payload['developer_fname']
+    room = payload['room']
+    developer_lname = payload['developer_lname']
+    developer_profile_link = payload['developer_profile_link']
+    message = payload['message']
+    
+    
+    emit('new_proposal_announcement', {
+        'developer_avatar':developer_avatar,
+        'developer_fname':developer_fname,
+        'developer_lname':developer_lname,
+        'message':developer_profile_link,
+        'message':message,
+
+        }, room=room)
 
 if __name__ == '__main__':
     socketio.run(app, host="0.0.0.0", port="5001", debug=True)
