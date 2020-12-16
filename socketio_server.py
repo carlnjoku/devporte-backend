@@ -1,7 +1,7 @@
 from flask import Flask, request, jsonify
 from flask_socketio import SocketIO, emit,send, join_room, leave_room
 from flask_cors import CORS
-from db import add_room, add_room_members, save_message, save_message_hire_notification, save_message_accept_offer_notification, save_project_feeds, update_freelancer_last_in_room, update_employer_last_in_room
+from db import add_room, add_room_members, save_message, save_message_hire_notification, save_message_hire_notification_hourly, save_message_accept_offer_notification, save_project_feeds, update_freelancer_last_in_room, update_employer_last_in_room
 from db import database 
 from jobs import upload_files
 from bson.objectid import ObjectId
@@ -93,33 +93,65 @@ def manage_hired(data):
 # Send hired notification
 @socketio.on('offer', namespace='/private')
 def hired(payload):
-    message_body = payload['message']
-    message_type = payload['message_type']
-    project_title = payload['title']
-    room = payload['room']
-    senderId = payload['senderId']
-    recepientId = payload['recepientId']
-    recepient_avatar = payload['recepient_avatar']
-    recepient_fname = payload['recepient_fname']
-    recepient_lname = payload['recepient_lname']
-    recepient_email = payload['recepient_email']
-    senderId =  payload['senderId']
-    sender_fname =  payload['sender_fname']
-    sender_lname = payload['sender_lname']
-    sender_email = payload['sender_email']
-    sender_avatar = payload['sender_avatar']
-    sender_type = payload['sender_type']
-    total_milestones = payload['total_milestones']
-    offerId = payload['offerId']
+    if payload['payment_type'] == 'fixed':
+        message_body = payload['message']
+        message_type = payload['message_type']
+        project_title = payload['title']
+        room = payload['room']
+        senderId = payload['senderId']
+        recepientId = payload['recepientId']
+        recepient_avatar = payload['recepient_avatar']
+        recepient_fname = payload['recepient_fname']
+        recepient_lname = payload['recepient_lname']
+        recepient_email = payload['recepient_email']
+        senderId =  payload['senderId']
+        sender_fname =  payload['sender_fname']
+        sender_lname = payload['sender_lname']
+        sender_email = payload['sender_email']
+        sender_avatar = payload['sender_avatar']
+        sender_type = payload['sender_type']
+        total_milestones = payload['total_milestones']
+        offerId = payload['offerId']
 
-    
-    emit('offered_freelancer', payload, room=room)
-    #emit('hired_freelancer', payload, broadcast=True)
-    print('calitos_room'+ payload['room'])
 
-    save_message_hire_notification(room, message_body, message_type, project_title, total_milestones,offerId, senderId, recepientId, recepient_avatar, recepient_fname, 
-    recepient_lname, recepient_email, sender_fname, sender_lname, sender_email, sender_avatar, sender_type )
-    print(payload)
+        emit('offered_freelancer', payload, room=room)
+        #emit('hired_freelancer', payload, broadcast=True)
+        print('calitos_room'+ payload['room'])
+
+        save_message_hire_notification(room, message_body, message_type, project_title, total_milestones,offerId, senderId, recepientId, recepient_avatar, recepient_fname, 
+        recepient_lname, recepient_email, sender_fname, sender_lname, sender_email, sender_avatar, sender_type )
+        print(payload)
+    else:
+        message_body = payload['message']
+        payment_type = payload['payment_type']
+        message_type = payload['message_type']
+        project_title = payload['title']
+        room = payload['room']
+        senderId = payload['senderId']
+        recepientId = payload['recepientId']
+        recepient_avatar = payload['recepient_avatar']
+        recepient_fname = payload['recepient_fname']
+        recepient_lname = payload['recepient_lname']
+        recepient_email = payload['recepient_email']
+        senderId =  payload['senderId']
+        sender_fname =  payload['sender_fname']
+        sender_lname = payload['sender_lname']
+        sender_email = payload['sender_email']
+        sender_avatar = payload['sender_avatar']
+        sender_type = payload['sender_type']
+        hourly_rate = payload['hourly_rate']
+        weekly_payout = payload['weekly_payout']
+        offerId = payload['offerId']
+
+
+        emit('offered_freelancer', payload, room=room)
+        #emit('hired_freelancer', payload, broadcast=True)
+        print('calitos_room'+ payload['room'])
+        print(payload['hourly_rate'])
+
+        save_message_hire_notification_hourly(room, message_body, message_type, project_title, payment_type, hourly_rate, weekly_payout, offerId, senderId, recepientId, recepient_avatar, recepient_fname, 
+        recepient_lname, recepient_email, sender_fname, sender_lname, sender_email, sender_avatar, sender_type )
+        print(payload)
 
 # Send hired notification
 @socketio.on('accept_offer', namespace='/private')
